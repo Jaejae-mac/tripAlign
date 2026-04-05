@@ -1,26 +1,180 @@
-@import "tailwindcss";
+/* 디자인 시스템 폰트: Plus Jakarta Sans */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
 
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/**
+ * 디자인 토큰 - TripAlign 색상 시스템
+ * Teal + Orange 팔레트 (WCAG AA+ 준수)
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* 브랜드 색상 */
+  --brand-primary: #0D9488;
+  --brand-secondary: #14B8A6;
+  --brand-cta: #F97316;
+  --brand-bg: #F0FDFA;
+
+  /* shadcn/ui 테마 변수 */
+  --background: oklch(0.99 0.01 183);
+  --foreground: oklch(0.15 0.03 181);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.15 0.03 181);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.15 0.03 181);
+  --primary: oklch(0.59 0.12 181);
+  --primary-foreground: oklch(0.98 0 0);
+  --secondary: oklch(0.94 0.03 183);
+  --secondary-foreground: oklch(0.2 0.04 181);
+  --muted: oklch(0.94 0.02 183);
+  --muted-foreground: oklch(0.45 0.04 183);
+  --accent: oklch(0.94 0.03 183);
+  --accent-foreground: oklch(0.2 0.04 181);
+  --destructive: oklch(0.57 0.22 27);
+  --border: oklch(0.88 0.02 183);
+  --input: oklch(0.88 0.02 183);
+  --ring: oklch(0.59 0.12 181);
+  --radius: 0.75rem;
+
+  /* 일정 카테고리 색상 */
+  --category-food: #F59E0B;
+  --category-tour: #10B981;
+  --category-stay: #6366F1;
+  --category-transport: #3B82F6;
+  --category-shopping: #EC4899;
+  --category-etc: #6B7280;
+
+  /* TripAlign 섀도우 (teal 기반) */
+  --shadow-sm: 0 1px 3px rgba(13, 148, 136, 0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 12px rgba(13, 148, 136, 0.08), 0 2px 4px rgba(0,0,0,0.04);
+  --shadow-lg: 0 10px 24px rgba(13, 148, 136, 0.10), 0 4px 8px rgba(0,0,0,0.04);
+
+  /* embla carousel 슬라이드 간격 */
+  --embla-slide-spacing: 1rem;
+
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+.dark {
+  --background: oklch(0.12 0.02 181);
+  --foreground: oklch(0.95 0.01 183);
+  --card: oklch(0.17 0.02 181);
+  --card-foreground: oklch(0.95 0.01 183);
+  --popover: oklch(0.17 0.02 181);
+  --popover-foreground: oklch(0.95 0.01 183);
+  --primary: oklch(0.65 0.12 181);
+  --primary-foreground: oklch(0.1 0.02 181);
+  --secondary: oklch(0.25 0.03 181);
+  --secondary-foreground: oklch(0.95 0.01 183);
+  --muted: oklch(0.25 0.02 181);
+  --muted-foreground: oklch(0.65 0.04 181);
+  --accent: oklch(0.25 0.03 181);
+  --accent-foreground: oklch(0.95 0.01 183);
+  --destructive: oklch(0.65 0.22 27);
+  --border: oklch(0.28 0.03 181);
+  --input: oklch(0.28 0.03 181);
+  --ring: oklch(0.65 0.12 181);
+
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(0.269 0 0);
+  --sidebar-ring: oklch(0.439 0 0);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-heading: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
 }
 
 body {
-  background: var(--background);
+  font-family: var(--font-sans);
+  background-color: var(--brand-bg);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  /* 모바일에서 가로 스크롤 방지 */
+  overflow-x: hidden;
+  /* 모바일 pull-to-refresh 비활성화 */
+  overscroll-behavior-y: none;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+}
+
+/* embla carousel 기본 스타일 */
+.embla {
+  overflow: hidden;
+}
+
+.embla__container {
+  display: flex;
+  /* 수직 스크롤은 허용하고, 수평 스와이프만 캐럿이 잡도록 설정 */
+  touch-action: pan-y pinch-zoom;
+}
+
+.embla__slide {
+  flex: 0 0 100%;
+  min-width: 0;
+  padding: 0 var(--embla-slide-spacing);
+}
+
+/* 커스텀 스크롤바 */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 2px;
 }
