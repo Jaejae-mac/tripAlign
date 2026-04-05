@@ -39,3 +39,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Claude Code 도구 파일 (로컬 전용)
+.agents/
+.mcp.json
+.playwright-mcp/
+design-system/
+skills-lock.json
+PLAN.md
