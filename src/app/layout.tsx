@@ -4,6 +4,7 @@
  */
 import type { Metadata, Viewport } from 'next'
 import { Toaster } from '@/components/ui/sonner'
+import { PlaneLoader } from '@/components/ui/PlaneLoader'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -29,6 +30,8 @@ export default function RootLayout({
         {children}
         {/* 전역 토스트 알림 */}
         <Toaster position="top-center" richColors />
+        {/* 전역 비행기 로딩 오버레이 — DB/서버 요청 대기 시 표시 */}
+        <PlaneLoader />
       </body>
     </html>
   )

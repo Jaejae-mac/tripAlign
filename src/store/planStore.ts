@@ -9,6 +9,7 @@ import {
   createPlan as createPlanService,
   deletePlan as deletePlanService,
 } from '@/services/plan.service'
+import { useLoadingStore } from '@/store/loadingStore'
 
 interface PlanState {
   plans: TravelPlan[]
@@ -32,6 +33,7 @@ export const usePlanStore = create<PlanState>((set, get) => ({
 
   /** 사용자의 플랜 목록을 서버에서 불러와 상태에 저장 */
   fetchPlans: async () => {
+    useLoadingStore.getState().show()
     set({ isLoading: true, error: null })
     try {
       const plans = await getPlans()
@@ -41,11 +43,14 @@ export const usePlanStore = create<PlanState>((set, get) => ({
         error: err instanceof Error ? err.message : '플랜을 불러오지 못했습니다.',
         isLoading: false,
       })
+    } finally {
+      useLoadingStore.getState().hide()
     }
   },
 
   /** 새 플랜을 생성하고 목록 맨 앞에 추가 */
   addPlan: async (dto: CreatePlanDto) => {
+    useLoadingStore.getState().show('플랜을 생성하는 중입니다')
     set({ isLoading: true, error: null })
     try {
       const newPlan = await createPlanService(dto)
@@ -60,11 +65,14 @@ export const usePlanStore = create<PlanState>((set, get) => ({
         isLoading: false,
       })
       throw err
+    } finally {
+      useLoadingStore.getState().hide()
     }
   },
 
   /** 플랜을 삭제하고 목록에서 제거 */
   removePlan: async (planId: string) => {
+    useLoadingStore.getState().show('플랜을 삭제하는 중입니다')
     set({ isLoading: true, error: null })
     try {
       await deletePlanService(planId)
@@ -80,6 +88,8 @@ export const usePlanStore = create<PlanState>((set, get) => ({
         isLoading: false,
       })
       throw err
+    } finally {
+      useLoadingStore.getState().hide()
     }
   },
 

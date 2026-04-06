@@ -13,6 +13,7 @@ import {
   removeMember,
 } from '@/services/invitation.service'
 import { createClient } from '@/lib/supabase/client'
+import { useLoadingStore } from '@/store/loadingStore'
 
 interface SharedPlanState {
   /** 수락이 완료된 공유 플랜 목록 */
@@ -44,6 +45,7 @@ export const useSharedPlanStore = create<SharedPlanState>((set, get) => ({
   error: null,
 
   fetchSharedPlans: async () => {
+    useLoadingStore.getState().show()
     set({ isLoading: true, error: null })
     try {
       const entries = await getSharedPlans()
@@ -57,6 +59,8 @@ export const useSharedPlanStore = create<SharedPlanState>((set, get) => ({
         error: err instanceof Error ? err.message : '공유 플랜을 불러오지 못했습니다.',
         isLoading: false,
       })
+    } finally {
+      useLoadingStore.getState().hide()
     }
   },
 
@@ -78,6 +82,7 @@ export const useSharedPlanStore = create<SharedPlanState>((set, get) => ({
       pendingInvitations: state.pendingInvitations.filter((i) => i.id !== invitationId),
     }))
 
+    useLoadingStore.getState().show('초대를 수락하는 중입니다')
     try {
       await acceptInvitation(invitationId)
 
@@ -97,6 +102,8 @@ export const useSharedPlanStore = create<SharedPlanState>((set, get) => ({
         pendingInvitations: [invitation, ...state.pendingInvitations],
       }))
       throw new Error('초대 수락에 실패했습니다.')
+    } finally {
+      useLoadingStore.getState().hide()
     }
   },
 
@@ -109,6 +116,7 @@ export const useSharedPlanStore = create<SharedPlanState>((set, get) => ({
       pendingInvitations: state.pendingInvitations.filter((i) => i.id !== invitationId),
     }))
 
+    useLoadingStore.getState().show('초대를 거절하는 중입니다')
     try {
       await rejectInvitation(invitationId)
     } catch {
@@ -117,6 +125,8 @@ export const useSharedPlanStore = create<SharedPlanState>((set, get) => ({
         pendingInvitations: [invitation, ...state.pendingInvitations],
       }))
       throw new Error('초대 거절에 실패했습니다.')
+    } finally {
+      useLoadingStore.getState().hide()
     }
   },
 
