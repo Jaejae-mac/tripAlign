@@ -130,7 +130,7 @@ export function PlanInviteDialog({ planId, open, onOpenChange }: PlanInviteDialo
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="max-w-[calc(100%-3rem)] sm:max-w-md max-h-[80vh] overflow-y-auto"
+        className="sm:max-w-md"
         onClick={(e) => e.stopPropagation()}
       >
         <DialogHeader>

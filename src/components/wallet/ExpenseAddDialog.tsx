@@ -161,7 +161,8 @@ export function ExpenseAddDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[calc(100%-3rem)] sm:max-w-md">
+      {/* 모바일: 바텀시트 / 데스크탑: 중앙 모달 — dialog.tsx에서 처리 */}
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold">
             {isEditing ? '지출 수정' : '지출 추가'}
@@ -274,6 +275,7 @@ export function ExpenseAddDialog({
             />
           </div>
 
+          {/* 취소/저장 버튼 — 항상 좌우 나란히 배치 */}
           <div className="flex gap-2 pt-1">
             <Button
               type="button"

@@ -149,7 +149,7 @@ export function PlanCreateDialog({ open, onOpenChange }: PlanCreateDialogProps) 
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-[calc(100%-3rem)] sm:max-w-md">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold">새 여행 플랜</DialogTitle>
         </DialogHeader>

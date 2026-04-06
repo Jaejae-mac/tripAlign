@@ -169,8 +169,9 @@ export function ScheduleAddDrawer({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[calc(100%-3rem)] sm:max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader className="pb-4">
+      {/* 모바일: 바텀시트 / 데스크탑: 중앙 모달 — dialog.tsx에서 처리 */}
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader className="pb-2">
           <DialogTitle className="text-lg font-bold">
             {isEditing ? '일정 수정' : '일정 추가'}
           </DialogTitle>
