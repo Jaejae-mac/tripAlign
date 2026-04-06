@@ -67,8 +67,8 @@ function DialogContent({
           "inset-x-0 bottom-0 w-full max-w-full max-h-[90vh] overflow-y-auto rounded-t-2xl border-t px-5 pt-5 pb-10",
           "data-[state=open]:animate-in data-[state=open]:slide-in-from-bottom data-[state=open]:fade-in-0 data-[state=open]:duration-300",
           "data-[state=closed]:animate-out data-[state=closed]:slide-out-to-bottom data-[state=closed]:fade-out-0 data-[state=closed]:duration-200",
-          // 데스크탑(sm+): 화면 중앙 모달로 전환
-          "sm:inset-x-auto sm:bottom-auto sm:left-[50%] sm:top-[50%] sm:w-full sm:max-w-lg sm:translate-x-[-50%] sm:translate-y-[-50%] sm:max-h-[85vh] sm:rounded-2xl sm:border sm:px-6 sm:py-6",
+          // 데스크탑(sm+): 화면 중앙 모달로 전환 — right:auto를 명시해 모바일 inset-x:0 완전 해제
+          "sm:inset-x-auto sm:right-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-full sm:max-w-lg sm:max-h-[85vh] sm:rounded-2xl sm:border sm:px-6 sm:py-6",
           "sm:data-[state=open]:zoom-in-95 sm:data-[state=closed]:zoom-out-95",
           className
         )}

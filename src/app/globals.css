@@ -147,6 +147,21 @@ h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-heading);
 }
 
+/**
+ * Safari/WebKit date 입력 overflow 수정
+ * iOS Safari는 input[type="date"]에 locale 기반 최소 너비("YYYY. MM. DD.")를 부여해
+ * CSS w-full을 무시하고 컨테이너 밖으로 튀어나옵니다.
+ * -webkit-appearance: none으로 브라우저 기본 스타일을 제거하면 CSS 너비를 준수합니다.
+ * (기능 — 네이티브 날짜 선택 휠 — 은 그대로 동작합니다.)
+ */
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"] {
+  -webkit-appearance: none;
+  appearance: none;
+  min-width: 0;
+}
+
 /* embla carousel 기본 스타일 */
 .embla {
   overflow: hidden;

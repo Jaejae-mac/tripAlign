@@ -88,7 +88,7 @@ export function SharedPlanCard({ plan, role }: SharedPlanCardProps) {
               src={plan.cover_image}
               alt={plan.title}
               fill
-              className="object-cover"
+              className="object-cover object-top"
               sizes="100vw"
               onError={() => setImageError(true)}
               unoptimized

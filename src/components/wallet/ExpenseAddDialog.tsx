@@ -4,6 +4,7 @@
  * 지출 추가/수정 다이얼로그
  * 날짜, 카테고리, 제목, 금액, 통화, 메모를 입력해 지출을 기록합니다.
  * editingExpense가 있으면 수정 모드로 동작합니다.
+ * 모바일: 바텀시트 / 데스크탑: 중앙 모달
  */
 import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
@@ -37,7 +38,6 @@ const CURRENCIES: Currency[] = ['KRW', 'USD', 'JPY', 'EUR', 'CNY']
 
 // 폼 유효성 검사 스키마
 // amount는 string으로 받아 서비스 호출 시 Number()로 변환합니다
-// (z.coerce.number()는 react-hook-form 제네릭과 타입 충돌이 있어 string으로 처리)
 const expenseSchema = z.object({
   date: z.string().min(1, '날짜를 입력해주세요.'),
   category: z.enum(['food', 'transport', 'stay', 'tour', 'shopping', 'etc']),
@@ -101,7 +101,7 @@ export function ExpenseAddDialog({
   useEffect(() => {
     if (open && editingExpense) {
       // 수정 모드: setValue()로 각 필드를 직접 업데이트
-      // watch('category'), watch('currency')는 register()가 아닌 setValue 패턴으로 제어되므로
+      // watch('category'), watch('currency')는 setValue 패턴으로 제어되므로
       // reset()보다 setValue()가 watch 구독을 더 안정적으로 갱신함
       setValue('date', editingExpense.date)
       setValue('category', editingExpense.category)
@@ -123,7 +123,6 @@ export function ExpenseAddDialog({
 
   /** 지출 저장 (추가 또는 수정) */
   const onSubmit = async (values: ExpenseFormValues) => {
-    // amount는 string으로 폼에서 받아, 서비스 호출 전 number로 변환합니다
     const parsedAmount = Number(values.amount)
 
     try {
@@ -169,22 +168,26 @@ export function ExpenseAddDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 py-2">
-          {/* 날짜 */}
+        <form onSubmit={handleSubmit(onSubmit)} className="w-full space-y-5 py-1">
+
+          {/* ── 날짜 ── */}
           <div className="space-y-1.5">
-            <Label htmlFor="date">날짜</Label>
+            <Label htmlFor="date" className="text-sm font-medium">날짜</Label>
             <Input
               id="date"
               type="date"
               {...register('date')}
-              className={cn(errors.date && 'border-destructive')}
+              className={cn('w-full', errors.date && 'border-destructive')}
             />
+            {errors.date && (
+              <p className="text-xs text-destructive">{errors.date.message}</p>
+            )}
           </div>
 
-          {/* 카테고리 선택 */}
+          {/* ── 카테고리 — 3열 그리드로 균일하게 배치 ── */}
           <div className="space-y-2">
-            <Label>카테고리</Label>
-            <div className="flex flex-wrap gap-2">
+            <Label className="text-sm font-medium">카테고리</Label>
+            <div className="grid grid-cols-3 gap-2">
               {EXPENSE_CATEGORIES.map((cat) => {
                 const config = CATEGORY_CONFIG[cat]
                 const isSelected = selectedCategory === cat
@@ -193,7 +196,10 @@ export function ExpenseAddDialog({
                     key={cat}
                     type="button"
                     onClick={() => setValue('category', cat)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-150 cursor-pointer border"
+                    className={cn(
+                      'flex items-center justify-center gap-1.5 px-2 py-2 rounded-xl text-sm font-medium transition-all duration-150 cursor-pointer border',
+                      'min-w-0 w-full'
+                    )}
                     style={{
                       backgroundColor: isSelected
                         ? `${config.color}20`
@@ -204,51 +210,55 @@ export function ExpenseAddDialog({
                         : 'var(--muted-foreground)',
                     }}
                   >
-                    <config.Icon className="w-3.5 h-3.5" />
-                    {config.label}
+                    <config.Icon className="w-3.5 h-3.5 shrink-0" />
+                    <span className="truncate">{config.label}</span>
                   </button>
                 )
               })}
             </div>
           </div>
 
-          {/* 내용 */}
+          {/* ── 내용 ── */}
           <div className="space-y-1.5">
-            <Label htmlFor="title">내용</Label>
+            <Label htmlFor="title" className="text-sm font-medium">내용</Label>
             <Input
               id="title"
               placeholder="예: 라멘 식사"
               {...register('title')}
-              className={cn(errors.title && 'border-destructive')}
+              className={cn('w-full', errors.title && 'border-destructive')}
             />
             {errors.title && (
               <p className="text-xs text-destructive">{errors.title.message}</p>
             )}
           </div>
 
-          {/* 금액 + 통화 */}
-          <div className="flex gap-3">
-            <div className="flex-1 space-y-1.5">
-              <Label htmlFor="amount">금액</Label>
+          {/* ── 금액 + 통화 — grid로 overflow 방지 ── */}
+          <div className="grid grid-cols-[1fr_110px] gap-3">
+            <div className="space-y-1.5 min-w-0">
+              <Label htmlFor="amount" className="text-sm font-medium">금액</Label>
               <Input
                 id="amount"
                 type="number"
                 inputMode="numeric"
                 placeholder="0"
                 {...register('amount')}
-                className={cn(errors.amount && 'border-destructive')}
+                className={cn('w-full', errors.amount && 'border-destructive')}
               />
+              {errors.amount && (
+                <p className="text-xs text-destructive">{errors.amount.message}</p>
+              )}
             </div>
-            <div className="w-28 space-y-1.5">
-              <Label>통화</Label>
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">통화</Label>
+              {/* position="popper"로 Portal이 trigger 기준으로 정확히 배치됨 */}
               <Select
                 value={selectedCurrency}
                 onValueChange={(v) => setValue('currency', v as Currency)}
               >
-                <SelectTrigger className="cursor-pointer">
+                <SelectTrigger className="w-full cursor-pointer">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent position="popper" className="w-[110px]">
                   {CURRENCIES.map((currency) => (
                     <SelectItem
                       key={currency}
@@ -263,19 +273,24 @@ export function ExpenseAddDialog({
             </div>
           </div>
 
-          {/* 메모 */}
+          {/* ── 메모 (선택) ── */}
           <div className="space-y-1.5">
-            <Label htmlFor="memo">메모 (선택)</Label>
+            <Label htmlFor="memo" className="text-sm font-medium">
+              메모 <span className="text-muted-foreground font-normal">(선택)</span>
+            </Label>
             <Textarea
               id="memo"
               placeholder="추가 메모를 입력하세요..."
               rows={2}
               {...register('memo')}
-              className="resize-none"
+              className="w-full resize-none"
             />
+            {errors.memo && (
+              <p className="text-xs text-destructive">{errors.memo.message}</p>
+            )}
           </div>
 
-          {/* 취소/저장 버튼 — 항상 좌우 나란히 배치 */}
+          {/* ── 취소 / 저장 버튼 ── */}
           <div className="flex gap-2 pt-1">
             <Button
               type="button"

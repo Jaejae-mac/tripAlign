@@ -178,8 +178,18 @@ export function ScheduleAddDrawer({
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-          {/* 시간 + 제목 — 모바일: 수직 적층 / sm 이상: 가로 배치 */}
+          {/* 제목 + 시간 — 모바일: 제목 위 / 시간 아래 / sm 이상: 가로 배치(제목 좌, 시간 우) */}
           <div className="flex flex-col sm:flex-row gap-3 sm:items-start">
+            <div className="flex-1 space-y-1.5">
+              <Label htmlFor="title">제목</Label>
+              <Input
+                id="title"
+                placeholder="예: 츠키지 시장 방문"
+                {...register('title')}
+                className={cn(errors.title && 'border-destructive')}
+              />
+            </div>
+
             <div className="space-y-1.5">
               <Label>시간</Label>
 
@@ -213,16 +223,6 @@ export function ScheduleAddDrawer({
                   종료 시간
                 </Label>
               </div>
-            </div>
-
-            <div className="flex-1 space-y-1.5">
-              <Label htmlFor="title">제목</Label>
-              <Input
-                id="title"
-                placeholder="예: 츠키지 시장 방문"
-                {...register('title')}
-                className={cn(errors.title && 'border-destructive')}
-              />
             </div>
           </div>
           {errors.time && (
