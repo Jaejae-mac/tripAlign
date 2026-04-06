@@ -81,16 +81,17 @@ export function SharedPlanCard({ plan, role }: SharedPlanCardProps) {
         className="overflow-hidden cursor-pointer border-border hover:shadow-md transition-shadow duration-200"
         onClick={() => router.push(`/plans/${plan.id}`)}
       >
-        {/* 커버 영역 */}
-        <div className="relative h-36 bg-muted overflow-hidden">
+        {/* 커버 영역 — w-full 명시로 Next.js fill 이미지 컨테이너 크기 보장 */}
+        <div className="relative w-full h-36 bg-muted overflow-hidden">
           {plan.cover_image && !imageError ? (
             <Image
               src={plan.cover_image}
               alt={plan.title}
               fill
               className="object-cover"
-              sizes="(max-width: 640px) 100vw, 50vw"
+              sizes="100vw"
               onError={() => setImageError(true)}
+              unoptimized
             />
           ) : (
             <div className={`absolute inset-0 bg-gradient-to-br ${gradient}`} />

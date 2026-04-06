@@ -44,6 +44,8 @@ export function PlanCard({ plan, isOwner = false }: PlanCardProps) {
   const { removePlan } = usePlanStore()
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false)
 
+  const [imageError, setImageError] = useState(false)
+
   // 플랜 ID의 첫 글자로 그라디언트 색상을 결정 (일관성 유지)
   const gradientIndex =
     plan.id.charCodeAt(0) % COVER_GRADIENTS.length
@@ -81,16 +83,18 @@ export function PlanCard({ plan, isOwner = false }: PlanCardProps) {
       className="group overflow-hidden border-border cursor-pointer p-0"
       style={{ boxShadow: 'var(--shadow-sm)' }}
     >
-      {/* 커버 영역 */}
-      <div className="relative h-36 flex items-end p-4 overflow-hidden">
+      {/* 커버 영역 — w-full 명시로 fill 이미지 컨테이너 크기 보장 */}
+      <div className="relative w-full h-36 flex items-end p-4 overflow-hidden">
         {/* 커버 이미지 or 그라디언트 배경 */}
-        {plan.cover_image ? (
+        {plan.cover_image && !imageError ? (
           <Image
             src={plan.cover_image}
             alt={plan.title}
             fill
             className="object-cover"
-            sizes="(max-width: 640px) 100vw, 50vw"
+            sizes="100vw"
+            onError={() => setImageError(true)}
+            unoptimized
           />
         ) : (
           <div className={`absolute inset-0 bg-gradient-to-br ${gradient}`} />

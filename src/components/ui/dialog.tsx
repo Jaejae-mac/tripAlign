@@ -61,10 +61,10 @@ function DialogContent({
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          // 공통 기본 스타일
-          "fixed z-50 grid gap-4 bg-background shadow-lg outline-none",
+          // 공통 기본 스타일 — flex col로 수평 오버플로우 방지
+          "fixed z-50 flex flex-col gap-4 bg-background shadow-lg outline-none overflow-x-hidden",
           // 모바일(기본): 화면 하단 고정 바텀시트 — 아래서 위로 슬라이드
-          "inset-x-0 bottom-0 w-full max-h-[90vh] overflow-y-auto rounded-t-2xl border-t px-5 pt-5 pb-10",
+          "inset-x-0 bottom-0 w-full max-w-full max-h-[90vh] overflow-y-auto rounded-t-2xl border-t px-5 pt-5 pb-10",
           "data-[state=open]:animate-in data-[state=open]:slide-in-from-bottom data-[state=open]:fade-in-0 data-[state=open]:duration-300",
           "data-[state=closed]:animate-out data-[state=closed]:slide-out-to-bottom data-[state=closed]:fade-out-0 data-[state=closed]:duration-200",
           // 데스크탑(sm+): 화면 중앙 모달로 전환
