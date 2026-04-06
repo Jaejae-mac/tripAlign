@@ -177,9 +177,9 @@ export function ScheduleAddDrawer({
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-          {/* 시간 + 제목 — 시간 컬럼 안에 시작/종료 시간을 수직으로 쌓아 X축 정렬 통일 */}
-          <div className="flex gap-3 items-start">
-            <div className="shrink-0 space-y-1.5">
+          {/* 시간 + 제목 — 모바일: 수직 적층 / sm 이상: 가로 배치 */}
+          <div className="flex flex-col sm:flex-row gap-3 sm:items-start">
+            <div className="space-y-1.5">
               <Label>시간</Label>
 
               {/* 시작 시간 */}

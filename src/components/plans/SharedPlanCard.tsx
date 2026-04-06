@@ -49,6 +49,7 @@ export function SharedPlanCard({ plan, role }: SharedPlanCardProps) {
   const router = useRouter()
   const { leaveSharedPlan } = useSharedPlanStore()
   const [isLeaving, setIsLeaving] = useState(false)
+  const [imageError, setImageError] = useState(false)
 
   const startDate = parseISO(plan.start_date)
   const endDate = parseISO(plan.end_date)
@@ -82,13 +83,14 @@ export function SharedPlanCard({ plan, role }: SharedPlanCardProps) {
       >
         {/* 커버 영역 */}
         <div className="relative h-36 bg-muted overflow-hidden">
-          {plan.cover_image ? (
+          {plan.cover_image && !imageError ? (
             <Image
               src={plan.cover_image}
               alt={plan.title}
               fill
               className="object-cover"
               sizes="(max-width: 640px) 100vw, 50vw"
+              onError={() => setImageError(true)}
             />
           ) : (
             <div className={`absolute inset-0 bg-gradient-to-br ${gradient}`} />

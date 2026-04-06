@@ -15,7 +15,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -275,25 +274,25 @@ export function ExpenseAddDialog({
             />
           </div>
 
-          <DialogFooter className="gap-2 pt-1">
+          <div className="flex gap-2 pt-1">
             <Button
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
-              className="cursor-pointer"
+              className="flex-1 cursor-pointer"
             >
               취소
             </Button>
             <Button
               type="submit"
               disabled={isSubmitting}
-              className="gap-2 cursor-pointer"
+              className="flex-1 gap-2 cursor-pointer"
               style={{ backgroundColor: 'var(--brand-cta)', color: 'white' }}
             >
               {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
               {isEditing ? '수정 완료' : '추가하기'}
             </Button>
-          </DialogFooter>
+          </div>
         </form>
       </DialogContent>
     </Dialog>
