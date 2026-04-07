@@ -21,11 +21,12 @@ import type { ScheduleItem as ScheduleItemType, VisitStatus } from '@/types/sche
 
 interface ScheduleItemProps {
   item: ScheduleItemType
+  onView: () => void
   onEdit: () => void
   onDeleted: () => void
 }
 
-export function ScheduleItem({ item, onEdit, onDeleted }: ScheduleItemProps) {
+export function ScheduleItem({ item, onView, onEdit, onDeleted }: ScheduleItemProps) {
   const [isDeleting, setIsDeleting] = useState(false)
   // 서버 상태 기본값: DB에 컬럼이 없는 기존 데이터를 위해 'pending' 폴백
   const [status, setStatus] = useState<VisitStatus>(item.status ?? 'pending')
@@ -84,10 +85,10 @@ export function ScheduleItem({ item, onEdit, onDeleted }: ScheduleItemProps) {
         />
       </div>
 
-      {/* 일정 정보 */}
+      {/* 일정 정보 — 본문 클릭 시 상세 팝업 오픈 */}
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0 flex-1 cursor-pointer" onClick={onView}>
             {/* 제목 — 완료 시 흐리게 처리 */}
             <p className={`font-medium text-sm truncate transition-colors duration-200 ${isCompleted ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
               {item.title}
@@ -135,8 +136,8 @@ export function ScheduleItem({ item, onEdit, onDeleted }: ScheduleItemProps) {
             )}
           </div>
 
-          {/* 우측: 상태 배지 + 더보기 메뉴 */}
-          <div className="flex items-center gap-1 shrink-0">
+          {/* 우측: 상태 배지 + 더보기 메뉴 — stopPropagation으로 카드 클릭 차단 */}
+          <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
             {/* 방문 상태 토글 배지 */}
             <button
               onClick={handleToggleStatus}

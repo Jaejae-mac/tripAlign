@@ -14,6 +14,7 @@ import { Separator } from '@/components/ui/separator'
 import { ExpenseSummary } from './ExpenseSummary'
 import { ExpenseItem } from './ExpenseItem'
 import { ExpenseAddDialog } from './ExpenseAddDialog'
+import { ExpenseItemDetailDialog } from './ExpenseItemDetailDialog'
 import { getExpenses, deleteExpense } from '@/services/expense.service'
 import { fetchKrwRates, convertToKrw } from '@/services/currency.service'
 import { CATEGORY_CONFIG } from '@/lib/constants/schedule'
@@ -49,6 +50,9 @@ export function ExpenseView({ planId, budget, budgetCurrency }: ExpenseViewProps
   const [isLoading, setIsLoading] = useState(true)
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null)
+  // 상세 팝업
+  const [viewingExpense, setViewingExpense] = useState<Expense | null>(null)
+  const [isDetailOpen, setIsDetailOpen] = useState(false)
   // 환율 정보 — 실패해도 앱 동작에 영향 없이 undefined 유지
   const [krwRates, setKrwRates] = useState<KrwRates | undefined>(undefined)
   // 카테고리 필터 — 'all'이면 전체 표시
@@ -77,6 +81,12 @@ export function ExpenseView({ planId, budget, budgetCurrency }: ExpenseViewProps
       .then(setKrwRates)
       .catch(() => {})
   }, [])
+
+  /** 지출 셀 클릭 시 상세 팝업 열기 */
+  const handleView = (expense: Expense) => {
+    setViewingExpense(expense)
+    setIsDetailOpen(true)
+  }
 
   /** 지출 항목 삭제 */
   const handleDelete = async (expenseId: string) => {
@@ -287,6 +297,7 @@ export function ExpenseView({ planId, budget, budgetCurrency }: ExpenseViewProps
                           <ExpenseItem
                             expense={expense}
                             krwRates={krwRates}
+                            onView={() => handleView(expense)}
                             onEdit={() => {
                               setEditingExpense(expense)
                               setIsAddDialogOpen(true)
@@ -305,6 +316,24 @@ export function ExpenseView({ planId, budget, budgetCurrency }: ExpenseViewProps
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* 지출 상세 팝업 */}
+      {viewingExpense && (
+        <ExpenseItemDetailDialog
+          open={isDetailOpen}
+          onOpenChange={(open) => {
+            setIsDetailOpen(open)
+            if (!open) setViewingExpense(null)
+          }}
+          expense={viewingExpense}
+          krwRates={krwRates}
+          onEdit={() => {
+            setEditingExpense(viewingExpense)
+            setIsAddDialogOpen(true)
+          }}
+          onDelete={() => handleDelete(viewingExpense.id)}
+        />
+      )}
 
       {/* 지출 추가/수정 다이얼로그 */}
       <ExpenseAddDialog

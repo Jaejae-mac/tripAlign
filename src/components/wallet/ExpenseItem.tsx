@@ -20,13 +20,14 @@ import type { Expense } from '@/types/expense.types'
 
 interface ExpenseItemProps {
   expense: Expense
+  onView: () => void
   onEdit: () => void
   onDelete: () => void
   /** 환율 정보 — 없으면 KRW 환산 표시 생략 */
   krwRates?: KrwRates
 }
 
-export function ExpenseItem({ expense, onEdit, onDelete, krwRates }: ExpenseItemProps) {
+export function ExpenseItem({ expense, onView, onEdit, onDelete, krwRates }: ExpenseItemProps) {
   const category = CATEGORY_CONFIG[expense.category]
 
   // 외화인 경우에만 KRW 환산 금액 계산 (환율 정보가 없으면 null)
@@ -40,69 +41,77 @@ export function ExpenseItem({ expense, onEdit, onDelete, krwRates }: ExpenseItem
       className="flex items-center gap-3 bg-white rounded-xl p-3.5 border border-border"
       style={{ boxShadow: 'var(--shadow-sm)' }}
     >
-      {/* 카테고리 아이콘 */}
+      {/* 클릭 영역: 아이콘 + 정보 + 금액 — 탭하면 상세 팝업 오픈 */}
       <div
-        className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-        style={{ backgroundColor: `${category.color}15` }}
+        className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer"
+        onClick={onView}
       >
-        <category.Icon
-          className="w-4 h-4"
-          style={{ color: category.color }}
-        />
-      </div>
+        {/* 카테고리 아이콘 */}
+        <div
+          className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+          style={{ backgroundColor: `${category.color}15` }}
+        >
+          <category.Icon
+            className="w-4 h-4"
+            style={{ color: category.color }}
+          />
+        </div>
 
-      {/* 지출 정보 */}
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-foreground truncate">
-          {expense.title}
-        </p>
-        {expense.memo && (
-          <p className="text-xs text-muted-foreground truncate mt-0.5">
-            {expense.memo}
+        {/* 지출 정보 */}
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-foreground truncate">
+            {expense.title}
           </p>
-        )}
-      </div>
+          {expense.memo && (
+            <p className="text-xs text-muted-foreground truncate mt-0.5">
+              {expense.memo}
+            </p>
+          )}
+        </div>
 
-      {/* 금액 + KRW 환산 */}
-      <div className="text-right shrink-0">
-        <p className="text-sm font-semibold text-foreground">
-          {expense.amount.toLocaleString()}
-        </p>
-        <p className="text-xs text-muted-foreground">{expense.currency}</p>
-        {/* 외화일 때 KRW 환산 금액 표시 */}
-        {krwAmount !== null && (
-          <p className="text-xs text-primary/70 mt-0.5">
-            ≈ {krwAmount.toLocaleString()}원
+        {/* 금액 + KRW 환산 */}
+        <div className="text-right shrink-0">
+          <p className="text-sm font-semibold text-foreground">
+            {expense.amount.toLocaleString()}
           </p>
-        )}
+          <p className="text-xs text-muted-foreground">{expense.currency}</p>
+          {/* 외화일 때 KRW 환산 금액 표시 */}
+          {krwAmount !== null && (
+            <p className="text-xs text-primary/70 mt-0.5">
+              ≈ {krwAmount.toLocaleString()}원
+            </p>
+          )}
+        </div>
       </div>
 
-      {/* 더보기 메뉴 */}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="w-7 h-7 shrink-0 cursor-pointer"
-          >
-            <MoreVertical className="w-4 h-4" />
-            <span className="sr-only">더보기</span>
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={onEdit} className="gap-2 cursor-pointer">
-            <Pencil className="w-4 h-4" />
-            수정
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={onDelete}
-            className="text-destructive focus:text-destructive gap-2 cursor-pointer"
-          >
-            <Trash2 className="w-4 h-4" />
-            삭제
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      {/* 더보기 메뉴 — stopPropagation으로 카드 클릭 차단 */}
+      <div onClick={(e) => e.stopPropagation()}>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="w-7 h-7 shrink-0 cursor-pointer"
+            >
+              <MoreVertical className="w-4 h-4" />
+              <span className="sr-only">더보기</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={onEdit} className="gap-2 cursor-pointer">
+              <Pencil className="w-4 h-4" />
+              수정
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={onDelete}
+              className="text-destructive focus:text-destructive gap-2 cursor-pointer"
+            >
+              <Trash2 className="w-4 h-4" />
+              삭제
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </div>
   )
 }

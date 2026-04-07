@@ -14,6 +14,7 @@ import { Plus, Sunrise } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ScheduleItem } from './ScheduleItem'
 import { ScheduleAddDrawer } from './ScheduleAddDrawer'
+import { ScheduleItemDetailDialog } from './ScheduleItemDetailDialog'
 import { getScheduleItemsByDate } from '@/services/schedule.service'
 import { toast } from 'sonner'
 import type { ScheduleItem as ScheduleItemType } from '@/types/schedule.types'
@@ -30,6 +31,9 @@ export function DayCard({ planId, date, dayNumber }: DayCardProps) {
   const [isAddDrawerOpen, setIsAddDrawerOpen] = useState(false)
   // 수정 중인 일정 항목 (null이면 추가 모드)
   const [editingItem, setEditingItem] = useState<ScheduleItemType | null>(null)
+  // 상세 팝업
+  const [viewingItem, setViewingItem] = useState<ScheduleItemType | null>(null)
+  const [isDetailOpen, setIsDetailOpen] = useState(false)
 
   const dateStr = format(date, 'yyyy-MM-dd')
 
@@ -54,6 +58,12 @@ export function DayCard({ planId, date, dayNumber }: DayCardProps) {
   const handleSaved = () => {
     setEditingItem(null)
     fetchItems()
+  }
+
+  /** 셀 클릭 시 상세 팝업 열기 */
+  const handleView = (item: ScheduleItemType) => {
+    setViewingItem(item)
+    setIsDetailOpen(true)
   }
 
   /** 수정 버튼 클릭 시 해당 항목으로 Drawer 열기 */
@@ -134,6 +144,7 @@ export function DayCard({ planId, date, dayNumber }: DayCardProps) {
               >
                 <ScheduleItem
                   item={item}
+                  onView={() => handleView(item)}
                   onEdit={() => handleEdit(item)}
                   onDeleted={() => handleDeleted(item.id)}
                 />
@@ -141,6 +152,24 @@ export function DayCard({ planId, date, dayNumber }: DayCardProps) {
             ))}
           </AnimatePresence>
         </motion.div>
+      )}
+
+      {/* 일정 상세 팝업 */}
+      {viewingItem && (
+        <ScheduleItemDetailDialog
+          open={isDetailOpen}
+          onOpenChange={(open) => {
+            setIsDetailOpen(open)
+            if (!open) setViewingItem(null)
+          }}
+          item={viewingItem}
+          onEdit={() => handleEdit(viewingItem)}
+          onDeleted={() => {
+            handleDeleted(viewingItem.id)
+            setIsDetailOpen(false)
+            setViewingItem(null)
+          }}
+        />
       )}
 
       {/* 일정 추가/수정 Drawer */}
