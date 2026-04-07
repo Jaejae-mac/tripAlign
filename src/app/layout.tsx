@@ -10,7 +10,7 @@ import './globals.css'
 export const metadata: Metadata = {
   title: 'TripAlign',
   description: '여행 일정과 지출을 한 곳에서 스마트하게 정리하세요.',
-  icons: { icon: '/favicon.ico' },
+  icons: { icon: '/favicon.ico', apple: '/apple-icon.png' },
   // iOS "홈화면에 추가" 시 전체화면 앱처럼 실행
   appleWebApp: {
     capable: true,

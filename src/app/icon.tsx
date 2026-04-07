@@ -15,25 +15,21 @@ export default function Icon() {
         style={{
           width: '100%',
           height: '100%',
-          background: '#F0FDFA',
+          background: '#0D9488',   // 브랜드 primary teal — 고대비 배경
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
         }}
       >
-        {/* MapPin SVG (lucide-react MapPin 경로 인라인) */}
-        <svg
-          width="280"
-          height="280"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="#0D9488"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
-          <circle cx="12" cy="10" r="3" />
+        {/* MapPin: fill 기반 (Satori는 stroke 미지원) */}
+        <svg width="280" height="280" viewBox="0 0 24 24">
+          {/* 핀 외곽 — 흰색 fill */}
+          <path
+            d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"
+            fill="white"
+          />
+          {/* 핀 구멍 — 배경색과 동일하게 채워서 구멍 효과 */}
+          <circle cx="12" cy="10" r="3" fill="#0D9488" />
         </svg>
       </div>
     ),
