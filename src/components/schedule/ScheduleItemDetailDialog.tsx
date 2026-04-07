@@ -83,9 +83,17 @@ export function ScheduleItemDetailDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-md max-h-[90vh] overflow-y-auto">
+      <DialogContent className={[
+        // 모바일: 바텀시트 override → 화면 중앙 고정
+        'inset-x-auto bottom-auto',
+        'left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2',
+        'w-[calc(100%-2rem)] rounded-2xl border px-5 py-5',
+        'max-h-[85vh] overflow-y-auto',
+        // 데스크탑: sm+ 기본값 유지 (max-w 덮어쓰기)
+        'sm:max-w-md',
+      ].join(' ')}>
         {/* 헤더: 아이콘 + 제목 + 시간 + 카테고리 배지 */}
-        <DialogHeader className="pb-2">
+        <DialogHeader className="pb-2 text-left">
           <div className="flex gap-3 items-start">
             <div
               className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
