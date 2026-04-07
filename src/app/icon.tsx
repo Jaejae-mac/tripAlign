@@ -15,14 +15,26 @@ export default function Icon() {
         style={{
           width: '100%',
           height: '100%',
-          background: '#0D9488',
-          borderRadius: '20%',
+          background: '#F0FDFA',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
         }}
       >
-        <span style={{ fontSize: 260, color: 'white' }}>✈️</span>
+        {/* MapPin SVG (lucide-react MapPin 경로 인라인) */}
+        <svg
+          width="280"
+          height="280"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="#0D9488"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+          <circle cx="12" cy="10" r="3" />
+        </svg>
       </div>
     ),
     { ...size }
