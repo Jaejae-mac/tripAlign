@@ -11,12 +11,19 @@ export const metadata: Metadata = {
   title: 'TripAlign',
   description: '여행 일정과 지출을 한 곳에서 스마트하게 정리하세요.',
   icons: { icon: '/favicon.ico' },
+  // iOS "홈화면에 추가" 시 전체화면 앱처럼 실행
+  appleWebApp: {
+    capable: true,
+    title: 'TripAlign',
+    statusBarStyle: 'default',
+  },
 }
 
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
+  themeColor: '#0D9488',   // Android 상태바 색상 (브랜드 teal)
 }
 
 export default function RootLayout({
