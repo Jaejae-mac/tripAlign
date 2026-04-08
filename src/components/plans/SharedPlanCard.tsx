@@ -81,6 +81,13 @@ export function SharedPlanCard({ plan, role }: SharedPlanCardProps) {
         className="overflow-hidden cursor-pointer border-border hover:shadow-md transition-shadow duration-200"
         onClick={() => router.push(`/plans/${plan.id}`)}
       >
+        {/* Shared 띠배너 — 카드 상단, 커버 이미지 외부 */}
+        <div className="flex items-center justify-center h-6 bg-lime-400/80">
+          <span className="text-[10px] font-bold text-white tracking-[0.18em] uppercase">
+            Shared
+          </span>
+        </div>
+
         {/* 커버 영역 — w-full 명시로 Next.js fill 이미지 컨테이너 크기 보장 */}
         <div className="relative w-full h-36 bg-muted overflow-hidden">
           {plan.cover_image && !imageError ? (
@@ -96,13 +103,6 @@ export function SharedPlanCard({ plan, role }: SharedPlanCardProps) {
           ) : (
             <div className={`absolute inset-0 bg-gradient-to-br ${gradient}`} />
           )}
-
-          {/* Shared 띠배너 — 커버 이미지 상단 */}
-          <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-center h-7 bg-lime-400/50 backdrop-blur-[2px]">
-            <span className="text-[11px] font-bold text-white tracking-[0.18em] uppercase drop-shadow-sm">
-              Shared
-            </span>
-          </div>
 
           {/* 어두운 하단 그라디언트 오버레이 */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
