@@ -97,6 +97,13 @@ export function SharedPlanCard({ plan, role }: SharedPlanCardProps) {
             <div className={`absolute inset-0 bg-gradient-to-br ${gradient}`} />
           )}
 
+          {/* Shared 띠배너 — 커버 이미지 상단 */}
+          <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-center h-7 bg-lime-400/50 backdrop-blur-[2px]">
+            <span className="text-[11px] font-bold text-white tracking-[0.18em] uppercase drop-shadow-sm">
+              Shared
+            </span>
+          </div>
+
           {/* 어두운 하단 그라디언트 오버레이 */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
 
