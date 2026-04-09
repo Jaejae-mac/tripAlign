@@ -239,7 +239,8 @@ export function ExpenseAddDialog({
               <Input
                 id="amount"
                 type="number"
-                inputMode="numeric"
+                inputMode="decimal"
+                step="any"
                 placeholder="0"
                 {...register('amount')}
                 className={cn('w-full', errors.amount && 'border-destructive')}
