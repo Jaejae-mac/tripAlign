@@ -53,8 +53,8 @@ export function ExpenseView({ planId, budget, budgetCurrency }: ExpenseViewProps
   // 상세 팝업
   const [viewingExpense, setViewingExpense] = useState<Expense | null>(null)
   const [isDetailOpen, setIsDetailOpen] = useState(false)
-  // 환율 정보 — 실패해도 앱 동작에 영향 없이 undefined 유지
-  const [krwRates, setKrwRates] = useState<KrwRates | undefined>(undefined)
+  // 날짜별 환율 맵 — 지출일 기준 환율 적용
+  const [ratesByDate, setRatesByDate] = useState<Record<string, KrwRates>>({})
   // 카테고리 필터 — 'all'이면 전체 표시
   const [selectedCategory, setSelectedCategory] = useState<ExpenseCategory | 'all'>('all')
 
@@ -75,12 +75,22 @@ export function ExpenseView({ planId, budget, budgetCurrency }: ExpenseViewProps
     fetchExpenses()
   }, [fetchExpenses])
 
-  // 화면에 처음 나타날 때 당일 환율 조회 (실패해도 KRW 환산 없이 정상 동작)
+  // expenses 로드 완료 후 고유 날짜 추출 → 지출일별 환율 병렬 fetch
   useEffect(() => {
-    fetchKrwRates()
-      .then(setKrwRates)
-      .catch(() => {})
-  }, [])
+    if (expenses.length === 0) return
+    const uniqueDates = [...new Set(expenses.map((e) => e.date))]
+    Promise.all(
+      uniqueDates.map((date) =>
+        fetchKrwRates(date)
+          .then((rates) => ({ date, rates }))
+          .catch(() => null)
+      )
+    ).then((results) => {
+      const map: Record<string, KrwRates> = {}
+      results.forEach((r) => { if (r) map[r.date] = r.rates })
+      setRatesByDate(map)
+    })
+  }, [expenses])
 
   /** 지출 셀 클릭 시 상세 팝업 열기 */
   const handleView = (expense: Expense) => {
@@ -189,7 +199,7 @@ export function ExpenseView({ planId, budget, budgetCurrency }: ExpenseViewProps
       {filteredExpenses.length > 0 && (
         <ExpenseSummary
           expenses={filteredExpenses}
-          krwRates={krwRates}
+          ratesByDate={ratesByDate}
           budget={budget}
           budgetCurrency={budgetCurrency}
         />
@@ -242,10 +252,11 @@ export function ExpenseView({ planId, budget, budgetCurrency }: ExpenseViewProps
               const allSameCurrency = dayExpenses.every(
                 (e) => e.currency === dayExpenses[0]?.currency
               )
+              const dayRates = ratesByDate[dateStr]
               const krwDayTotal =
-                krwRates && dayHasNonKrw
+                dayRates && dayHasNonKrw
                   ? dayExpenses.reduce(
-                      (sum, e) => sum + convertToKrw(e.amount, e.currency, krwRates),
+                      (sum, e) => sum + convertToKrw(e.amount, e.currency, dayRates),
                       0
                     )
                   : null
@@ -296,7 +307,7 @@ export function ExpenseView({ planId, budget, budgetCurrency }: ExpenseViewProps
                         >
                           <ExpenseItem
                             expense={expense}
-                            krwRates={krwRates}
+                            krwRates={ratesByDate[expense.date]}
                             onView={() => handleView(expense)}
                             onEdit={() => {
                               setEditingExpense(expense)
@@ -326,7 +337,7 @@ export function ExpenseView({ planId, budget, budgetCurrency }: ExpenseViewProps
             if (!open) setViewingExpense(null)
           }}
           expense={viewingExpense}
-          krwRates={krwRates}
+          krwRates={ratesByDate[viewingExpense.date]}
           onEdit={() => {
             setEditingExpense(viewingExpense)
             setIsAddDialogOpen(true)

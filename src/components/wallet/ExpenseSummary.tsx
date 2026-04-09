@@ -41,15 +41,15 @@ function AnimatedTotal({ value }: { value: number }) {
 
 interface ExpenseSummaryProps {
   expenses: Expense[]
-  /** 환율 정보 — 있으면 전체 KRW 환산 합계를 추가로 표시 */
-  krwRates?: KrwRates
+  /** 지출일별 환율 맵 — 있으면 각 지출의 지출일 환율로 KRW 환산 합계 표시 */
+  ratesByDate?: Record<string, KrwRates>
   /** 여행 총 예산 — 있으면 예산 대비 진행 바 표시 */
   budget?: number | null
   /** 예산 통화 코드 */
   budgetCurrency?: string | null
 }
 
-export function ExpenseSummary({ expenses, krwRates, budget, budgetCurrency }: ExpenseSummaryProps) {
+export function ExpenseSummary({ expenses, ratesByDate, budget, budgetCurrency }: ExpenseSummaryProps) {
   const summaries = calcSummaryByCategory(expenses)
 
   // 원시 합계 (통화 무시) — 단일 통화일 때만 의미 있음
@@ -57,10 +57,13 @@ export function ExpenseSummary({ expenses, krwRates, budget, budgetCurrency }: E
   const currency = expenses[0]?.currency ?? 'KRW'
   const hasNonKrw = expenses.some((e) => e.currency !== 'KRW')
 
-  // 외화 포함 시 전체 KRW 환산 합계 계산
+  // 외화 포함 시 지출일별 환율로 전체 KRW 환산 합계 계산
   const krwTotal =
-    krwRates && hasNonKrw
-      ? expenses.reduce((sum, e) => sum + convertToKrw(e.amount, e.currency, krwRates), 0)
+    ratesByDate && hasNonKrw
+      ? expenses.reduce((sum, e) => {
+          const rates = ratesByDate[e.date]
+          return sum + (rates ? convertToKrw(e.amount, e.currency, rates) : e.amount)
+        }, 0)
       : null
 
   /**
@@ -72,11 +75,12 @@ export function ExpenseSummary({ expenses, krwRates, budget, budgetCurrency }: E
 
   /**
    * 카테고리별 KRW 환산 합계 — 막대 그래프·도넛 차트 비율 계산에 사용
-   * raw sum으로 비율을 계산하면 EUR 30이 KRW 10,000 대비 0.3%로 잘못 계산됨
+   * 지출일별 환율을 적용해 통화가 다른 지출의 비율을 정확히 계산
    */
-  const krwCategoryMap = krwRates
+  const krwCategoryMap = ratesByDate
     ? expenses.reduce((map, e) => {
-        const krw = convertToKrw(e.amount, e.currency, krwRates)
+        const rates = ratesByDate[e.date]
+        const krw = rates ? convertToKrw(e.amount, e.currency, rates) : e.amount
         map.set(e.category, (map.get(e.category) ?? 0) + krw)
         return map
       }, new Map<string, number>())
@@ -124,10 +128,10 @@ export function ExpenseSummary({ expenses, krwRates, budget, budgetCurrency }: E
               {displayCurrency}
             </span>
           </span>
-          {/* KRW 환산 적용 시 "당일 환율 기준" 레이블 표시 */}
+          {/* KRW 환산 적용 시 "지출일 기준 환율" 레이블 표시 */}
           {krwTotal !== null && (
             <p className="text-xs text-muted-foreground/60 mt-0.5">
-              당일 환율 기준
+              지출일 기준 환율
             </p>
           )}
         </div>
