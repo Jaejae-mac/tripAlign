@@ -16,7 +16,6 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
-  type DragStartEvent,
 } from '@dnd-kit/core'
 import {
   SortableContext,
@@ -50,11 +49,12 @@ interface ChecklistGroupProps {
 // ── 정렬 가능한 항목 행 ───────────────────────────────────────
 interface SortableItemRowProps {
   item: PackingItem
+  isEditing: boolean
   onToggle: (itemId: string, isChecked: boolean) => void
   onDelete: (itemId: string) => void
 }
 
-function SortableItemRow({ item, onToggle, onDelete }: SortableItemRowProps) {
+function SortableItemRow({ item, isEditing, onToggle, onDelete }: SortableItemRowProps) {
   const {
     attributes,
     listeners,
@@ -73,20 +73,22 @@ function SortableItemRow({ item, onToggle, onDelete }: SortableItemRowProps) {
     <li
       ref={setNodeRef}
       style={style}
-      className={`flex items-center gap-2 px-3 py-2.5 group border-b border-border/60 last:border-b-0 bg-card ${
+      className={`flex items-center gap-2 px-3 py-2.5 border-b border-border/60 last:border-b-0 bg-card ${
         isDragging ? 'opacity-40 z-10 relative shadow-md' : ''
       }`}
     >
-      {/* 항목 드래그 핸들 */}
-      <button
-        {...attributes}
-        {...listeners}
-        className="text-muted-foreground/40 hover:text-muted-foreground transition-colors cursor-grab active:cursor-grabbing shrink-0 touch-none"
-        aria-label="항목 순서 변경"
-        tabIndex={-1}
-      >
-        <GripVertical className="w-3.5 h-3.5" />
-      </button>
+      {/* 항목 드래그 핸들 — 편집 모드에서 숨김 */}
+      {!isEditing && (
+        <button
+          {...attributes}
+          {...listeners}
+          className="text-muted-foreground/40 hover:text-muted-foreground transition-colors cursor-grab active:cursor-grabbing shrink-0 touch-none"
+          aria-label="항목 순서 변경"
+          tabIndex={-1}
+        >
+          <GripVertical className="w-3.5 h-3.5" />
+        </button>
+      )}
 
       <Checkbox
         checked={item.is_checked}
@@ -105,14 +107,16 @@ function SortableItemRow({ item, onToggle, onDelete }: SortableItemRowProps) {
         {item.title}
       </span>
 
-      {/* 삭제 버튼 — 호버 시만 표시 */}
-      <button
-        onClick={() => onDelete(item.id)}
-        className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all cursor-pointer shrink-0"
-        aria-label="항목 삭제"
-      >
-        <X className="w-3.5 h-3.5" />
-      </button>
+      {/* 삭제 버튼 — 편집 모드에서만 표시 */}
+      {isEditing && (
+        <button
+          onClick={() => onDelete(item.id)}
+          className="text-muted-foreground hover:text-destructive transition-colors cursor-pointer shrink-0"
+          aria-label="항목 삭제"
+        >
+          <X className="w-3.5 h-3.5" />
+        </button>
+      )}
     </li>
   )
 }
@@ -131,6 +135,7 @@ export function ChecklistGroup({
   const [isAddingItem, setIsAddingItem] = useState(false)
   const [newItemTitle, setNewItemTitle] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   // 항목 DnD 센서 — 그룹이 드래그 중일 때는 비활성
@@ -194,15 +199,17 @@ export function ChecklistGroup({
     <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
       {/* 그룹 헤더 */}
       <div className="flex items-center gap-1 px-3 py-3 bg-muted/40 border-b border-border">
-        {/* 그룹 드래그 핸들 */}
-        <button
-          {...dragHandleProps}
-          className="text-muted-foreground/50 hover:text-muted-foreground transition-colors cursor-grab active:cursor-grabbing shrink-0 touch-none p-0.5"
-          aria-label="그룹 순서 변경"
-          tabIndex={-1}
-        >
-          <GripVertical className="w-4 h-4" />
-        </button>
+        {/* 그룹 드래그 핸들 — 편집 모드에서 숨김 */}
+        {!isEditing && (
+          <button
+            {...dragHandleProps}
+            className="text-muted-foreground/50 hover:text-muted-foreground transition-colors cursor-grab active:cursor-grabbing shrink-0 touch-none p-0.5"
+            aria-label="그룹 순서 변경"
+            tabIndex={-1}
+          >
+            <GripVertical className="w-4 h-4" />
+          </button>
+        )}
 
         <div className="flex items-center gap-2 min-w-0 flex-1 ml-0.5">
           <span className="font-semibold text-sm text-foreground truncate">
@@ -221,14 +228,28 @@ export function ChecklistGroup({
           )}
         </div>
 
-        {/* 그룹 삭제 버튼 */}
+        {/* 편집/완료 토글 버튼 */}
         <button
-          onClick={() => onDeleteGroup(group.id)}
-          className="text-muted-foreground hover:text-destructive transition-colors cursor-pointer ml-1 shrink-0"
-          aria-label="그룹 삭제"
+          onClick={() => setIsEditing((v) => !v)}
+          className="text-xs font-medium px-2 py-0.5 rounded-md transition-colors cursor-pointer shrink-0"
+          style={{
+            color: isEditing ? 'var(--brand-cta)' : 'var(--muted-foreground)',
+            backgroundColor: isEditing ? 'color-mix(in srgb, var(--brand-cta) 12%, transparent)' : 'transparent',
+          }}
         >
-          <Trash2 className="w-3.5 h-3.5" />
+          {isEditing ? '완료' : '편집'}
         </button>
+
+        {/* 그룹 삭제 버튼 — 편집 모드가 아닐 때만 표시 */}
+        {!isEditing && (
+          <button
+            onClick={() => onDeleteGroup(group.id)}
+            className="text-muted-foreground hover:text-destructive transition-colors cursor-pointer ml-1 shrink-0"
+            aria-label="그룹 삭제"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
 
       {/* 항목 목록 — 항목 DnD 컨텍스트 */}
@@ -247,6 +268,7 @@ export function ChecklistGroup({
                 <SortableItemRow
                   key={item.id}
                   item={item}
+                  isEditing={isEditing}
                   onToggle={onToggleItem}
                   onDelete={onDeleteItem}
                 />
