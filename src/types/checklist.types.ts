@@ -8,6 +8,7 @@ export interface PackingGroup {
   id: string
   plan_id: string
   name: string
+  sort_order: number
   created_at: string
 }
 
@@ -17,6 +18,7 @@ export interface PackingItem {
   group_id: string
   title: string
   is_checked: boolean
+  sort_order: number
   created_at: string
 }
 

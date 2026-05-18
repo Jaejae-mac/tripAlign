@@ -2,42 +2,143 @@
 
 /**
  * 준비물 그룹 카드 컴포넌트
- * 그룹 이름과 진행도(완료/전체)를 보여주고, 하위 항목의 체크/추가/삭제를 처리합니다.
+ * 그룹 헤더의 드래그 핸들로 그룹 순서를 변경하고,
+ * 항목 행의 드래그 핸들로 항목 순서를 변경할 수 있습니다.
  */
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, Trash2, X } from 'lucide-react'
+import { Plus, Trash2, X, GripVertical } from 'lucide-react'
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  arrayMove,
+  useSortable,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
+import { reorderPackingItems } from '@/services/checklist.service'
+import { toast } from 'sonner'
 import type { PackingGroupWithItems, PackingItem } from '@/types/checklist.types'
 
 interface ChecklistGroupProps {
   group: PackingGroupWithItems
-  /** 항목 체크/언체크 시 호출 — optimistic update는 부모가 담당 */
+  /** 그룹 헤더 드래그 핸들에 적용할 props (부모 DnD 컨텍스트에서 전달) */
+  dragHandleProps?: React.HTMLAttributes<HTMLElement>
+  /** 다른 그룹이 드래그 중인 경우 true — 항목 DnD 비활성화 */
+  isDraggingAny: boolean
   onToggleItem: (itemId: string, isChecked: boolean) => void
-  /** 새 항목 추가 시 호출 */
   onAddItem: (groupId: string, title: string) => Promise<void>
-  /** 항목 삭제 시 호출 */
   onDeleteItem: (itemId: string) => void
-  /** 그룹 전체 삭제 시 호출 */
   onDeleteGroup: (groupId: string) => void
+  /** 항목 순서 변경 시 부모 state를 업데이트하도록 콜백 */
+  onReorderItems: (groupId: string, from: number, to: number) => void
 }
 
+// ── 정렬 가능한 항목 행 ───────────────────────────────────────
+interface SortableItemRowProps {
+  item: PackingItem
+  onToggle: (itemId: string, isChecked: boolean) => void
+  onDelete: (itemId: string) => void
+}
+
+function SortableItemRow({ item, onToggle, onDelete }: SortableItemRowProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: item.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  }
+
+  return (
+    <li
+      ref={setNodeRef}
+      style={style}
+      className={`flex items-center gap-2 px-3 py-2.5 group border-b border-border/60 last:border-b-0 bg-card ${
+        isDragging ? 'opacity-40 z-10 relative shadow-md' : ''
+      }`}
+    >
+      {/* 항목 드래그 핸들 */}
+      <button
+        {...attributes}
+        {...listeners}
+        className="text-muted-foreground/40 hover:text-muted-foreground transition-colors cursor-grab active:cursor-grabbing shrink-0 touch-none"
+        aria-label="항목 순서 변경"
+        tabIndex={-1}
+      >
+        <GripVertical className="w-3.5 h-3.5" />
+      </button>
+
+      <Checkbox
+        checked={item.is_checked}
+        onCheckedChange={(checked) => onToggle(item.id, checked as boolean)}
+        className="shrink-0 cursor-pointer"
+      />
+
+      <span
+        className="flex-1 text-sm transition-all duration-200"
+        style={{
+          textDecoration: item.is_checked ? 'line-through' : 'none',
+          opacity: item.is_checked ? 0.45 : 1,
+          color: 'var(--foreground)',
+        }}
+      >
+        {item.title}
+      </span>
+
+      {/* 삭제 버튼 — 호버 시만 표시 */}
+      <button
+        onClick={() => onDelete(item.id)}
+        className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all cursor-pointer shrink-0"
+        aria-label="항목 삭제"
+      >
+        <X className="w-3.5 h-3.5" />
+      </button>
+    </li>
+  )
+}
+
+// ── 그룹 카드 ────────────────────────────────────────────────
 export function ChecklistGroup({
   group,
+  dragHandleProps,
+  isDraggingAny,
   onToggleItem,
   onAddItem,
   onDeleteItem,
   onDeleteGroup,
+  onReorderItems,
 }: ChecklistGroupProps) {
-  // 항목 추가 인풋 표시 여부
   const [isAddingItem, setIsAddingItem] = useState(false)
   const [newItemTitle, setNewItemTitle] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // 인풋이 노출되면 자동 포커스
+  // 항목 DnD 센서 — 그룹이 드래그 중일 때는 비활성
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  )
+
   useEffect(() => {
     if (isAddingItem) inputRef.current?.focus()
   }, [isAddingItem])
@@ -45,19 +146,39 @@ export function ChecklistGroup({
   const checkedCount = group.items.filter((i) => i.is_checked).length
   const totalCount = group.items.length
 
-  /** 항목 추가 확정 */
+  // ── 항목 DnD ─────────────────────────────────────────────
+  const handleItemDragEnd = async ({ active, over }: DragEndEvent) => {
+    if (!over || active.id === over.id) return
+
+    const oldIndex = group.items.findIndex((i) => i.id === active.id)
+    const newIndex = group.items.findIndex((i) => i.id === over.id)
+    if (oldIndex === -1 || newIndex === -1) return
+
+    // 즉시 UI 반영 (부모 state 업데이트)
+    onReorderItems(group.id, oldIndex, newIndex)
+
+    // DB 동기화
+    const reordered = arrayMove(group.items, oldIndex, newIndex)
+    try {
+      await reorderPackingItems(
+        reordered.map((item, i) => ({ id: item.id, sort_order: i }))
+      )
+    } catch {
+      // 실패 시 원래 순서로 되돌리기
+      onReorderItems(group.id, newIndex, oldIndex)
+      toast.error('항목 순서 저장에 실패했습니다.')
+    }
+  }
+
+  // ── 항목 추가 ─────────────────────────────────────────────
   const handleAddItem = async () => {
     const title = newItemTitle.trim()
-    if (!title) {
-      setIsAddingItem(false)
-      return
-    }
+    if (!title) { setIsAddingItem(false); return }
 
     setIsSubmitting(true)
     try {
       await onAddItem(group.id, title)
       setNewItemTitle('')
-      // 추가 후 인풋은 열어두어 연속 입력 가능하게 함
       inputRef.current?.focus()
     } finally {
       setIsSubmitting(false)
@@ -66,27 +187,32 @@ export function ChecklistGroup({
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') handleAddItem()
-    if (e.key === 'Escape') {
-      setIsAddingItem(false)
-      setNewItemTitle('')
-    }
+    if (e.key === 'Escape') { setIsAddingItem(false); setNewItemTitle('') }
   }
 
   return (
     <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
       {/* 그룹 헤더 */}
-      <div className="flex items-center justify-between px-4 py-3 bg-muted/40 border-b border-border">
-        <div className="flex items-center gap-2 min-w-0">
+      <div className="flex items-center gap-1 px-3 py-3 bg-muted/40 border-b border-border">
+        {/* 그룹 드래그 핸들 */}
+        <button
+          {...dragHandleProps}
+          className="text-muted-foreground/50 hover:text-muted-foreground transition-colors cursor-grab active:cursor-grabbing shrink-0 touch-none p-0.5"
+          aria-label="그룹 순서 변경"
+          tabIndex={-1}
+        >
+          <GripVertical className="w-4 h-4" />
+        </button>
+
+        <div className="flex items-center gap-2 min-w-0 flex-1 ml-0.5">
           <span className="font-semibold text-sm text-foreground truncate">
             {group.name}
           </span>
-          {/* 진행도 배지 */}
           {totalCount > 0 && (
             <span
               className="shrink-0 text-[11px] font-medium px-2 py-0.5 rounded-full"
               style={{
-                backgroundColor:
-                  checkedCount === totalCount ? '#dcfce7' : '#f1f5f9',
+                backgroundColor: checkedCount === totalCount ? '#dcfce7' : '#f1f5f9',
                 color: checkedCount === totalCount ? '#16a34a' : '#64748b',
               }}
             >
@@ -94,29 +220,41 @@ export function ChecklistGroup({
             </span>
           )}
         </div>
+
         {/* 그룹 삭제 버튼 */}
         <button
           onClick={() => onDeleteGroup(group.id)}
-          className="text-muted-foreground hover:text-destructive transition-colors cursor-pointer ml-2 shrink-0"
+          className="text-muted-foreground hover:text-destructive transition-colors cursor-pointer ml-1 shrink-0"
           aria-label="그룹 삭제"
         >
           <Trash2 className="w-3.5 h-3.5" />
         </button>
       </div>
 
-      {/* 항목 목록 */}
-      <ul className="divide-y divide-border/60">
-        <AnimatePresence initial={false}>
-          {group.items.map((item) => (
-            <ChecklistItem
-              key={item.id}
-              item={item}
-              onToggle={onToggleItem}
-              onDelete={onDeleteItem}
-            />
-          ))}
-        </AnimatePresence>
-      </ul>
+      {/* 항목 목록 — 항목 DnD 컨텍스트 */}
+      {group.items.length > 0 && (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleItemDragEnd}
+        >
+          <SortableContext
+            items={group.items.map((i) => i.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <ul>
+              {group.items.map((item) => (
+                <SortableItemRow
+                  key={item.id}
+                  item={item}
+                  onToggle={onToggleItem}
+                  onDelete={onDeleteItem}
+                />
+              ))}
+            </ul>
+          </SortableContext>
+        </DndContext>
+      )}
 
       {/* 항목 추가 영역 */}
       <div className="px-4 py-2.5">
@@ -149,10 +287,7 @@ export function ChecklistGroup({
                 추가
               </Button>
               <button
-                onClick={() => {
-                  setIsAddingItem(false)
-                  setNewItemTitle('')
-                }}
+                onClick={() => { setIsAddingItem(false); setNewItemTitle('') }}
                 className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer shrink-0"
                 aria-label="취소"
               >
@@ -175,51 +310,5 @@ export function ChecklistGroup({
         </AnimatePresence>
       </div>
     </div>
-  )
-}
-
-/** 개별 항목 행 — 체크박스 + 제목 + 삭제 버튼 */
-function ChecklistItem({
-  item,
-  onToggle,
-  onDelete,
-}: {
-  item: PackingItem
-  onToggle: (itemId: string, isChecked: boolean) => void
-  onDelete: (itemId: string) => void
-}) {
-  return (
-    <motion.li
-      initial={{ opacity: 0, y: -4 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, x: -8 }}
-      transition={{ duration: 0.15 }}
-      className="flex items-center gap-3 px-4 py-2.5 group"
-    >
-      <Checkbox
-        checked={item.is_checked}
-        onCheckedChange={(checked) => onToggle(item.id, checked as boolean)}
-        className="shrink-0 cursor-pointer"
-      />
-      {/* 체크 시 취소선 + 흐리게 처리 */}
-      <span
-        className="flex-1 text-sm transition-all duration-200"
-        style={{
-          textDecoration: item.is_checked ? 'line-through' : 'none',
-          opacity: item.is_checked ? 0.45 : 1,
-          color: 'var(--foreground)',
-        }}
-      >
-        {item.title}
-      </span>
-      {/* 삭제 버튼 — 호버 시만 표시 */}
-      <button
-        onClick={() => onDelete(item.id)}
-        className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all cursor-pointer shrink-0"
-        aria-label="항목 삭제"
-      >
-        <X className="w-3.5 h-3.5" />
-      </button>
-    </motion.li>
   )
 }
