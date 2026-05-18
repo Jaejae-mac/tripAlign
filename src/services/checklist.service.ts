@@ -21,29 +21,28 @@ export async function getPackingGroups(planId: string): Promise<PackingGroupWith
       items:packing_items(*)
     `)
     .eq('plan_id', planId)
-    .order('created_at', { ascending: true })
+    .order('sort_order', { ascending: true })
 
   if (error) throw new Error(error.message)
 
-  // 각 그룹의 항목을 추가된 순서대로 정렬
   return (data ?? []).map((group) => ({
     ...group,
     items: (group.items ?? []).sort(
-      (a: PackingItem, b: PackingItem) =>
-        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      (a: PackingItem, b: PackingItem) => a.sort_order - b.sort_order
     ),
   }))
 }
 
-/** 새 준비물 그룹 추가 */
+/** 새 준비물 그룹 추가 — sort_order는 현재 그룹 수로 설정 (맨 뒤) */
 export async function createPackingGroup(
   planId: string,
-  dto: CreatePackingGroupDto
+  dto: CreatePackingGroupDto,
+  currentCount: number
 ): Promise<PackingGroup> {
   const supabase = createClient()
   const { data, error } = await supabase
     .from('packing_groups')
-    .insert({ plan_id: planId, name: dto.name })
+    .insert({ plan_id: planId, name: dto.name, sort_order: currentCount })
     .select()
     .single()
 
@@ -62,15 +61,28 @@ export async function deletePackingGroup(groupId: string): Promise<void> {
   if (error) throw new Error(error.message)
 }
 
-/** 준비물 항목 추가 */
+/** 그룹 순서 일괄 업데이트 — 드래그 앤 드롭 후 호출 */
+export async function reorderPackingGroups(
+  updates: { id: string; sort_order: number }[]
+): Promise<void> {
+  const supabase = createClient()
+  await Promise.all(
+    updates.map(({ id, sort_order }) =>
+      supabase.from('packing_groups').update({ sort_order }).eq('id', id)
+    )
+  )
+}
+
+/** 준비물 항목 추가 — sort_order는 현재 항목 수로 설정 (맨 뒤) */
 export async function createPackingItem(
   groupId: string,
-  dto: CreatePackingItemDto
+  dto: CreatePackingItemDto,
+  currentCount: number
 ): Promise<PackingItem> {
   const supabase = createClient()
   const { data, error } = await supabase
     .from('packing_items')
-    .insert({ group_id: groupId, title: dto.title })
+    .insert({ group_id: groupId, title: dto.title, sort_order: currentCount })
     .select()
     .single()
 
@@ -93,6 +105,18 @@ export async function togglePackingItem(
 
   if (error) throw new Error(error.message)
   return data
+}
+
+/** 항목 순서 일괄 업데이트 — 드래그 앤 드롭 후 호출 */
+export async function reorderPackingItems(
+  updates: { id: string; sort_order: number }[]
+): Promise<void> {
+  const supabase = createClient()
+  await Promise.all(
+    updates.map(({ id, sort_order }) =>
+      supabase.from('packing_items').update({ sort_order }).eq('id', id)
+    )
+  )
 }
 
 /** 준비물 항목 삭제 */
