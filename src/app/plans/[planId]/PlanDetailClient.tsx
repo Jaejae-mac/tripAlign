@@ -5,7 +5,7 @@
  * 상단에 플랜 정보와 탭 네비게이션(일정 / 가계부)을 보여주고,
  * 선택된 탭에 따라 DayCardCarousel 또는 ExpenseView를 렌더링합니다.
  */
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { format, parseISO, differenceInDays } from 'date-fns'
 import { ko } from 'date-fns/locale'
@@ -18,6 +18,7 @@ import { DayCardCarousel } from '@/components/schedule/DayCardCarousel'
 import { ExpenseView } from '@/components/wallet/ExpenseView'
 import { ChecklistView } from '@/components/checklist/ChecklistView'
 import { PlanEditDialog } from '@/components/plans/PlanEditDialog'
+import { useLoadingStore } from '@/store/loadingStore'
 import type { TravelPlanClient } from '@/types/plan.types'
 import type { User } from '@supabase/supabase-js'
 
@@ -31,10 +32,16 @@ interface PlanDetailClientProps {
 
 export function PlanDetailClient({ plan: initialPlan, user, isOwner }: PlanDetailClientProps) {
   const router = useRouter()
+  const { hide: hideLoading } = useLoadingStore()
   // 수정 후 즉시 UI에 반영되도록 로컬 상태로 관리 (user_id 제외)
   const [plan, setPlan] = useState<TravelPlanClient>(initialPlan)
   const [activeTab, setActiveTab] = useState<'schedule' | 'wallet' | 'checklist'>('schedule')
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+
+  // 플랜 카드 클릭으로 시작된 로딩 오버레이를 상세 화면 진입 시 해제
+  useEffect(() => {
+    hideLoading()
+  }, [])
 
   const startDate = parseISO(plan.start_date)
   const endDate = parseISO(plan.end_date)

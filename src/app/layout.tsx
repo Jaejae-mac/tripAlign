@@ -32,7 +32,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="ko" className="h-full antialiased">
+    <html lang="ko" className="h-full antialiased" style={{ backgroundColor: '#F0FDFA' }}>
       <body className="min-h-full flex flex-col">
         {children}
         {/* 전역 토스트 알림 */}
