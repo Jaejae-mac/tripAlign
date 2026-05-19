@@ -198,7 +198,10 @@ export function ChecklistGroup({
   return (
     <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
       {/* 그룹 헤더 */}
-      <div className="flex items-center gap-1 px-3 py-3 bg-muted/40 border-b border-border">
+      <div
+        className="flex items-center gap-1 px-3 py-3 border-b border-border transition-colors duration-200"
+        style={{ backgroundColor: isEditing ? '#fefce8' : 'hsl(var(--muted) / 0.4)' }}
+      >
         {/* 그룹 드래그 핸들 — 편집 모드에서 숨김 */}
         {!isEditing && (
           <button
