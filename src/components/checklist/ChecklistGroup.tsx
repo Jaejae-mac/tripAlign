@@ -234,10 +234,10 @@ export function ChecklistGroup({
         {/* 편집/완료 토글 버튼 */}
         <button
           onClick={() => setIsEditing((v) => !v)}
-          className="text-xs font-medium px-2 py-0.5 rounded-md transition-colors cursor-pointer shrink-0"
+          className="text-xs font-medium px-2.5 py-1 rounded-md transition-all duration-200 cursor-pointer shrink-0"
           style={{
-            color: isEditing ? 'var(--brand-cta)' : 'var(--muted-foreground)',
-            backgroundColor: isEditing ? 'color-mix(in srgb, var(--brand-cta) 12%, transparent)' : 'transparent',
+            color: isEditing ? '#ffffff' : 'var(--muted-foreground)',
+            backgroundColor: isEditing ? 'var(--brand-cta)' : 'transparent',
           }}
         >
           {isEditing ? '완료' : '편집'}
