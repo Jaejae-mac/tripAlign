@@ -37,6 +37,7 @@ import {
   createPackingItem,
   togglePackingItem,
   deletePackingItem,
+  updatePackingItemTitle,
   reorderPackingGroups,
 } from '@/services/checklist.service'
 import { toast } from 'sonner'
@@ -55,6 +56,7 @@ interface SortableGroupCardProps {
   onDeleteItem: (itemId: string) => void
   onDeleteGroup: (groupId: string) => void
   onReorderItems: (groupId: string, from: number, to: number) => void
+  onUpdateItemTitle: (itemId: string, title: string) => Promise<void>
 }
 
 function SortableGroupCard({
@@ -65,6 +67,7 @@ function SortableGroupCard({
   onDeleteItem,
   onDeleteGroup,
   onReorderItems,
+  onUpdateItemTitle,
 }: SortableGroupCardProps) {
   const {
     attributes,
@@ -95,6 +98,7 @@ function SortableGroupCard({
           onDeleteItem={onDeleteItem}
           onDeleteGroup={onDeleteGroup}
           onReorderItems={onReorderItems}
+          onUpdateItemTitle={onUpdateItemTitle}
         />
       </motion.div>
     </div>
@@ -258,6 +262,23 @@ export function ChecklistView({ planId }: ChecklistViewProps) {
     }
   }
 
+  const handleUpdateItemTitle = async (itemId: string, title: string) => {
+    setGroups((prev) =>
+      prev.map((g) => ({
+        ...g,
+        items: g.items.map((item) =>
+          item.id === itemId ? { ...item, title } : item
+        ),
+      }))
+    )
+    try {
+      await updatePackingItemTitle(itemId, title)
+    } catch {
+      toast.error('항목 수정에 실패했습니다.')
+      await fetchGroups()
+    }
+  }
+
   // ── 항목 순서 변경 (그룹 내부에서 발생, 여기서 state 업데이트) ──
   const handleReorderItems = (groupId: string, from: number, to: number) => {
     setGroups((prev) =>
@@ -334,6 +355,7 @@ export function ChecklistView({ planId }: ChecklistViewProps) {
                 onDeleteItem={handleDeleteItem}
                 onDeleteGroup={handleDeleteGroup}
                 onReorderItems={handleReorderItems}
+                onUpdateItemTitle={handleUpdateItemTitle}
               />
             ))}
           </div>

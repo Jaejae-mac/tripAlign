@@ -4,6 +4,7 @@
  * 준비물 그룹 카드 컴포넌트
  * 그룹 헤더의 드래그 핸들로 그룹 순서를 변경하고,
  * 항목 행의 드래그 핸들로 항목 순서를 변경할 수 있습니다.
+ * 편집 모드에서는 항목 텍스트를 직접 수정하거나 삭제할 수 있습니다.
  */
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -34,27 +35,34 @@ import type { PackingGroupWithItems, PackingItem } from '@/types/checklist.types
 
 interface ChecklistGroupProps {
   group: PackingGroupWithItems
-  /** 그룹 헤더 드래그 핸들에 적용할 props (부모 DnD 컨텍스트에서 전달) */
   dragHandleProps?: React.HTMLAttributes<HTMLElement>
-  /** 다른 그룹이 드래그 중인 경우 true — 항목 DnD 비활성화 */
   isDraggingAny: boolean
   onToggleItem: (itemId: string, isChecked: boolean) => void
   onAddItem: (groupId: string, title: string) => Promise<void>
   onDeleteItem: (itemId: string) => void
   onDeleteGroup: (groupId: string) => void
-  /** 항목 순서 변경 시 부모 state를 업데이트하도록 콜백 */
   onReorderItems: (groupId: string, from: number, to: number) => void
+  onUpdateItemTitle: (itemId: string, title: string) => Promise<void>
 }
 
 // ── 정렬 가능한 항목 행 ───────────────────────────────────────
 interface SortableItemRowProps {
   item: PackingItem
   isEditing: boolean
+  editValue: string
+  onEditChange: (itemId: string, value: string) => void
   onToggle: (itemId: string, isChecked: boolean) => void
   onDelete: (itemId: string) => void
 }
 
-function SortableItemRow({ item, isEditing, onToggle, onDelete }: SortableItemRowProps) {
+function SortableItemRow({
+  item,
+  isEditing,
+  editValue,
+  onEditChange,
+  onToggle,
+  onDelete,
+}: SortableItemRowProps) {
   const {
     attributes,
     listeners,
@@ -73,7 +81,7 @@ function SortableItemRow({ item, isEditing, onToggle, onDelete }: SortableItemRo
     <li
       ref={setNodeRef}
       style={style}
-      className={`flex items-center gap-2 px-3 py-2.5 border-b border-border/60 last:border-b-0 bg-card ${
+      className={`flex items-center gap-2 px-3 py-2 border-b border-border/60 last:border-b-0 bg-card ${
         isDragging ? 'opacity-40 z-10 relative shadow-md' : ''
       }`}
     >
@@ -94,18 +102,29 @@ function SortableItemRow({ item, isEditing, onToggle, onDelete }: SortableItemRo
         checked={item.is_checked}
         onCheckedChange={(checked) => onToggle(item.id, checked as boolean)}
         className="shrink-0 cursor-pointer"
+        disabled={isEditing}
       />
 
-      <span
-        className="flex-1 text-sm transition-all duration-200"
-        style={{
-          textDecoration: item.is_checked ? 'line-through' : 'none',
-          opacity: item.is_checked ? 0.45 : 1,
-          color: 'var(--foreground)',
-        }}
-      >
-        {item.title}
-      </span>
+      {/* 편집 모드: input / 일반 모드: span */}
+      {isEditing ? (
+        <input
+          value={editValue}
+          onChange={(e) => onEditChange(item.id, e.target.value)}
+          className="flex-1 text-sm min-w-0 bg-white rounded px-2 py-1 border border-border/80 focus:border-orange-400 focus:outline-none"
+          style={{ color: 'var(--foreground)' }}
+        />
+      ) : (
+        <span
+          className="flex-1 text-sm transition-all duration-200"
+          style={{
+            textDecoration: item.is_checked ? 'line-through' : 'none',
+            opacity: item.is_checked ? 0.45 : 1,
+            color: 'var(--foreground)',
+          }}
+        >
+          {item.title}
+        </span>
+      )}
 
       {/* 삭제 버튼 — 편집 모드에서만 표시 */}
       {isEditing && (
@@ -131,14 +150,16 @@ export function ChecklistGroup({
   onDeleteItem,
   onDeleteGroup,
   onReorderItems,
+  onUpdateItemTitle,
 }: ChecklistGroupProps) {
   const [isAddingItem, setIsAddingItem] = useState(false)
   const [newItemTitle, setNewItemTitle] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [editedTitles, setEditedTitles] = useState<Record<string, string>>({})
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // 항목 DnD 센서 — 그룹이 드래그 중일 때는 비활성
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
@@ -151,6 +172,39 @@ export function ChecklistGroup({
   const checkedCount = group.items.filter((i) => i.is_checked).length
   const totalCount = group.items.length
 
+  // ── 편집 모드 토글 ────────────────────────────────────────
+  const handleToggleEdit = async () => {
+    if (!isEditing) {
+      // 편집 모드 진입 — 현재 타이틀로 초기화
+      const initial: Record<string, string> = {}
+      group.items.forEach((item) => { initial[item.id] = item.title })
+      setEditedTitles(initial)
+      setIsEditing(true)
+    } else {
+      // 편집 모드 종료 — 변경된 항목만 저장
+      const changed = group.items.filter(
+        (item) =>
+          editedTitles[item.id] !== undefined &&
+          editedTitles[item.id].trim() !== '' &&
+          editedTitles[item.id].trim() !== item.title
+      )
+      if (changed.length > 0) {
+        setIsSaving(true)
+        try {
+          await Promise.all(
+            changed.map((item) => onUpdateItemTitle(item.id, editedTitles[item.id].trim()))
+          )
+        } catch {
+          toast.error('일부 항목 저장에 실패했습니다.')
+        } finally {
+          setIsSaving(false)
+        }
+      }
+      setIsEditing(false)
+      setEditedTitles({})
+    }
+  }
+
   // ── 항목 DnD ─────────────────────────────────────────────
   const handleItemDragEnd = async ({ active, over }: DragEndEvent) => {
     if (!over || active.id === over.id) return
@@ -159,17 +213,14 @@ export function ChecklistGroup({
     const newIndex = group.items.findIndex((i) => i.id === over.id)
     if (oldIndex === -1 || newIndex === -1) return
 
-    // 즉시 UI 반영 (부모 state 업데이트)
     onReorderItems(group.id, oldIndex, newIndex)
 
-    // DB 동기화
     const reordered = arrayMove(group.items, oldIndex, newIndex)
     try {
       await reorderPackingItems(
         reordered.map((item, i) => ({ id: item.id, sort_order: i }))
       )
     } catch {
-      // 실패 시 원래 순서로 되돌리기
       onReorderItems(group.id, newIndex, oldIndex)
       toast.error('항목 순서 저장에 실패했습니다.')
     }
@@ -233,14 +284,15 @@ export function ChecklistGroup({
 
         {/* 편집/완료 토글 버튼 */}
         <button
-          onClick={() => setIsEditing((v) => !v)}
-          className="text-xs font-medium px-2.5 py-1 rounded-md transition-all duration-200 cursor-pointer shrink-0"
+          onClick={handleToggleEdit}
+          disabled={isSaving}
+          className="text-xs font-medium px-2.5 py-1 rounded-md transition-all duration-200 cursor-pointer shrink-0 disabled:opacity-60"
           style={{
             color: isEditing ? '#ffffff' : 'var(--muted-foreground)',
             backgroundColor: isEditing ? 'var(--brand-cta)' : 'transparent',
           }}
         >
-          {isEditing ? '완료' : '편집'}
+          {isSaving ? '저장 중...' : isEditing ? '완료' : '편집'}
         </button>
 
         {/* 그룹 삭제 버튼 — 편집 모드가 아닐 때만 표시 */}
@@ -272,6 +324,10 @@ export function ChecklistGroup({
                   key={item.id}
                   item={item}
                   isEditing={isEditing}
+                  editValue={editedTitles[item.id] ?? item.title}
+                  onEditChange={(id, val) =>
+                    setEditedTitles((prev) => ({ ...prev, [id]: val }))
+                  }
                   onToggle={onToggleItem}
                   onDelete={onDeleteItem}
                 />

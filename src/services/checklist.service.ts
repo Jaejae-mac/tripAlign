@@ -119,6 +119,23 @@ export async function reorderPackingItems(
   )
 }
 
+/** 준비물 항목 제목 수정 */
+export async function updatePackingItemTitle(
+  itemId: string,
+  title: string
+): Promise<PackingItem> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('packing_items')
+    .update({ title })
+    .eq('id', itemId)
+    .select()
+    .single()
+
+  if (error) throw new Error(error.message)
+  return data
+}
+
 /** 준비물 항목 삭제 */
 export async function deletePackingItem(itemId: string): Promise<void> {
   const supabase = createClient()
