@@ -3,11 +3,22 @@
 /**
  * Google OAuth 로그인 버튼
  * 클릭 시 Supabase를 통해 Google OAuth 플로우를 시작합니다.
+ *
+ * iOS PWA(홈화면 앱)는 WKWebView에서 실행되므로 Google이 차단합니다.
+ * 이 경우 skipBrowserRedirect로 URL을 받아 외부 Safari에서 열어 우회합니다.
  */
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
+
+/** iOS PWA 홈화면 standalone 모드 여부 */
+function isIOSStandalone(): boolean {
+  if (typeof navigator === 'undefined' || typeof window === 'undefined') return false
+  return (
+    (navigator as unknown as { standalone?: boolean }).standalone === true
+  )
+}
 
 export function GoogleLoginButton() {
   const [isLoading, setIsLoading] = useState(false)
@@ -16,15 +27,31 @@ export function GoogleLoginButton() {
     setIsLoading(true)
     try {
       const supabase = createClient()
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          // 인증 후 /auth/callback 라우트로 리다이렉트
-          redirectTo: `${window.location.origin}/auth/callback`,
-        },
-      })
-      if (error) throw error
-    } catch (err) {
+      const redirectTo = `${window.location.origin}/auth/callback`
+
+      if (isIOSStandalone()) {
+        // iOS PWA: WKWebView를 우회하여 외부 Safari에서 OAuth 진행
+        const { data, error } = await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: { redirectTo, skipBrowserRedirect: true },
+        })
+        if (error) throw error
+        if (data.url) {
+          window.open(data.url, '_blank')
+          toast.info('Safari에서 로그인 완료 후 앱으로 돌아오세요.', {
+            duration: 6000,
+          })
+        }
+        setIsLoading(false)
+      } else {
+        // 일반 브라우저: 동일 탭 내 리다이렉트
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: { redirectTo },
+        })
+        if (error) throw error
+      }
+    } catch {
       toast.error('Google 로그인에 실패했습니다. 다시 시도해 주세요.')
       setIsLoading(false)
     }
@@ -37,7 +64,6 @@ export function GoogleLoginButton() {
       className="w-full h-11 gap-3 bg-white hover:bg-gray-50 text-gray-700 border border-border font-medium cursor-pointer transition-colors duration-200"
       variant="outline"
     >
-      {/* Google 공식 SVG 로고 */}
       <svg viewBox="0 0 24 24" className="w-5 h-5 shrink-0" aria-hidden="true">
         <path
           fill="#4285F4"
