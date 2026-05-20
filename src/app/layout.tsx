@@ -11,7 +11,7 @@ import './globals.css'
 export const metadata: Metadata = {
   metadataBase: new URL(
     (() => {
-      const raw = process.env.NEXT_PUBLIC_APP_URL ?? 'trip-align.vercel.app'
+      const raw = process.env.NEXT_PUBLIC_APP_URL || 'trip-align.vercel.app'
       return raw.startsWith('http') ? raw : `https://${raw}`
     })()
   ),
