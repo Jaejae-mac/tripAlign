@@ -10,7 +10,10 @@ import './globals.css'
 
 export const metadata: Metadata = {
   metadataBase: new URL(
-    process.env.NEXT_PUBLIC_APP_URL ?? 'https://trip-align.vercel.app'
+    (() => {
+      const raw = process.env.NEXT_PUBLIC_APP_URL ?? 'trip-align.vercel.app'
+      return raw.startsWith('http') ? raw : `https://${raw}`
+    })()
   ),
   title: 'TripAlign',
   description: '여행 일정과 지출을 한 곳에서 스마트하게 정리하세요.',
