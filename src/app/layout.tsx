@@ -6,6 +6,7 @@ import type { Metadata, Viewport } from 'next'
 import { Toaster } from '@/components/ui/sonner'
 import { PlaneLoader } from '@/components/ui/PlaneLoader'
 import { ServiceWorkerInit } from '@/components/ServiceWorkerInit'
+import { SplashScreen } from '@/components/SplashScreen'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -99,8 +100,10 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="ko" className="h-full antialiased" style={{ backgroundColor: '#F0FDFA' }}>
-      <body className="min-h-full flex flex-col">
+    <html lang="ko" className="h-full antialiased" style={{ backgroundColor: '#F0FDFA', colorScheme: 'light' }}>
+      <body className="min-h-full flex flex-col" style={{ backgroundColor: '#F0FDFA' }}>
+        {/* 초기 로드 스플래시 — SSR로 HTML에 포함되어 검은 화면 없이 즉시 표시 */}
+        <SplashScreen />
         {children}
         {/* 전역 토스트 알림 */}
         <Toaster position="top-center" richColors />
