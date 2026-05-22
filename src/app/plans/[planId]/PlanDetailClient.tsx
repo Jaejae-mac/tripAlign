@@ -5,7 +5,7 @@
  * 상단에 플랜 정보와 탭 네비게이션(일정 / 가계부)을 보여주고,
  * 선택된 탭에 따라 DayCardCarousel 또는 ExpenseView를 렌더링합니다.
  */
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { format, parseISO, differenceInDays } from 'date-fns'
 import { ko } from 'date-fns/locale'
@@ -22,6 +22,17 @@ import { useLoadingStore } from '@/store/loadingStore'
 import type { TravelPlanClient } from '@/types/plan.types'
 import type { User } from '@supabase/supabase-js'
 
+const TAB_ORDER = ['schedule', 'wallet', 'checklist'] as const
+type TabValue = (typeof TAB_ORDER)[number]
+
+const tabVariants = {
+  enterFromRight: { opacity: 0, x: 20 },
+  enterFromLeft:  { opacity: 0, x: -20 },
+  center:         { opacity: 1, x: 0 },
+  exitToLeft:     { opacity: 0, x: -20 },
+  exitToRight:    { opacity: 0, x: 20 },
+}
+
 interface PlanDetailClientProps {
   /** user_id는 서버에서만 사용하므로 클라이언트 props에서 제외 */
   plan: TravelPlanClient
@@ -35,13 +46,54 @@ export function PlanDetailClient({ plan: initialPlan, user, isOwner }: PlanDetai
   const { hide: hideLoading } = useLoadingStore()
   // 수정 후 즉시 UI에 반영되도록 로컬 상태로 관리 (user_id 제외)
   const [plan, setPlan] = useState<TravelPlanClient>(initialPlan)
-  const [activeTab, setActiveTab] = useState<'schedule' | 'wallet' | 'checklist'>('schedule')
+  const [activeTab, setActiveTab] = useState<TabValue>('schedule')
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const swipeDirectionRef = useRef<'left' | 'right'>('left')
+  const touchStartXRef = useRef<number>(0)
+  const touchStartYRef = useRef<number>(0)
+  const contentRef = useRef<HTMLDivElement>(null)
+
+  const changeTab = (next: TabValue, direction: 'left' | 'right') => {
+    swipeDirectionRef.current = direction
+    setActiveTab(next)
+  }
 
   // 플랜 카드 클릭으로 시작된 로딩 오버레이를 상세 화면 진입 시 해제
   useEffect(() => {
     hideLoading()
   }, [])
+
+  useEffect(() => {
+    const el = contentRef.current
+    if (!el) return
+
+    const handleTouchStart = (e: TouchEvent) => {
+      touchStartXRef.current = e.touches[0].clientX
+      touchStartYRef.current = e.touches[0].clientY
+    }
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      const dx = e.changedTouches[0].clientX - touchStartXRef.current
+      const dy = e.changedTouches[0].clientY - touchStartYRef.current
+
+      if (Math.abs(dx) < 50 || Math.abs(dx) <= Math.abs(dy)) return
+      if ((e.target as Element).closest('.embla')) return
+
+      const currentIdx = TAB_ORDER.indexOf(activeTab)
+      if (dx < 0 && currentIdx < TAB_ORDER.length - 1) {
+        changeTab(TAB_ORDER[currentIdx + 1], 'left')
+      } else if (dx > 0 && currentIdx > 0) {
+        changeTab(TAB_ORDER[currentIdx - 1], 'right')
+      }
+    }
+
+    el.addEventListener('touchstart', handleTouchStart, { passive: true })
+    el.addEventListener('touchend', handleTouchEnd, { passive: true })
+    return () => {
+      el.removeEventListener('touchstart', handleTouchStart)
+      el.removeEventListener('touchend', handleTouchEnd)
+    }
+  }, [activeTab])
 
   const startDate = parseISO(plan.start_date)
   const endDate = parseISO(plan.end_date)
@@ -105,9 +157,15 @@ export function PlanDetailClient({ plan: initialPlan, user, isOwner }: PlanDetai
         </motion.div>
 
         {/* 탭 네비게이션 */}
+        <div ref={contentRef}>
         <Tabs
           value={activeTab}
-          onValueChange={(v) => setActiveTab(v as 'schedule' | 'wallet' | 'checklist')}
+          onValueChange={(v) => {
+            const next = v as TabValue
+            const nextIdx = TAB_ORDER.indexOf(next)
+            const currentIdx = TAB_ORDER.indexOf(activeTab)
+            changeTab(next, nextIdx > currentIdx ? 'left' : 'right')
+          }}
           className="flex-1"
         >
           <div className="pt-3">
@@ -127,15 +185,16 @@ export function PlanDetailClient({ plan: initialPlan, user, isOwner }: PlanDetai
             </TabsList>
           </div>
 
-          {/* 탭 콘텐츠 — AnimatePresence로 탭 전환 페이드 애니메이션 */}
+          {/* 탭 콘텐츠 — AnimatePresence로 방향 기반 슬라이드 애니메이션 */}
           <AnimatePresence mode="wait">
             {activeTab === 'schedule' && (
               <TabsContent key="schedule" value="schedule" className="mt-0" forceMount>
                 <motion.div
-                  initial={{ opacity: 0, x: -8 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 8 }}
-                  transition={{ duration: 0.2 }}
+                  variants={tabVariants}
+                  initial={swipeDirectionRef.current === 'left' ? 'enterFromRight' : 'enterFromLeft'}
+                  animate="center"
+                  exit={swipeDirectionRef.current === 'left' ? 'exitToLeft' : 'exitToRight'}
+                  transition={{ duration: 0.2, ease: 'easeOut' }}
                 >
                   <DayCardCarousel plan={plan} />
                 </motion.div>
@@ -144,10 +203,11 @@ export function PlanDetailClient({ plan: initialPlan, user, isOwner }: PlanDetai
             {activeTab === 'wallet' && (
               <TabsContent key="wallet" value="wallet" className="mt-0 py-4" forceMount>
                 <motion.div
-                  initial={{ opacity: 0, x: 8 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -8 }}
-                  transition={{ duration: 0.2 }}
+                  variants={tabVariants}
+                  initial={swipeDirectionRef.current === 'left' ? 'enterFromRight' : 'enterFromLeft'}
+                  animate="center"
+                  exit={swipeDirectionRef.current === 'left' ? 'exitToLeft' : 'exitToRight'}
+                  transition={{ duration: 0.2, ease: 'easeOut' }}
                 >
                   <ExpenseView
                     planId={plan.id}
@@ -160,10 +220,11 @@ export function PlanDetailClient({ plan: initialPlan, user, isOwner }: PlanDetai
             {activeTab === 'checklist' && (
               <TabsContent key="checklist" value="checklist" className="mt-0" forceMount>
                 <motion.div
-                  initial={{ opacity: 0, x: 8 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -8 }}
-                  transition={{ duration: 0.2 }}
+                  variants={tabVariants}
+                  initial={swipeDirectionRef.current === 'left' ? 'enterFromRight' : 'enterFromLeft'}
+                  animate="center"
+                  exit={swipeDirectionRef.current === 'left' ? 'exitToLeft' : 'exitToRight'}
+                  transition={{ duration: 0.2, ease: 'easeOut' }}
                 >
                   <ChecklistView planId={plan.id} />
                 </motion.div>
@@ -171,6 +232,7 @@ export function PlanDetailClient({ plan: initialPlan, user, isOwner }: PlanDetai
             )}
           </AnimatePresence>
         </Tabs>
+        </div>
       </main>
 
       {/* 플랜 수정 다이얼로그 — 오너만 접근 가능 */}
