@@ -43,7 +43,7 @@ function buildSegments(
   krwCategoryMap: Map<string, number> | null | undefined,
   displayTotal: number
 ): Segment[] {
-  if (displayTotal === 0) return []
+  if (!displayTotal || isNaN(displayTotal)) return []
 
   // 카테고리 합계 집계
   const categoryTotals = new Map<ExpenseCategory, number>()
@@ -146,13 +146,13 @@ export function ExpenseDonutChart({
       {/* SVG 도넛 차트 */}
       <div className="relative shrink-0 w-28 h-28">
         <svg viewBox="0 0 100 100" className="w-full h-full -rotate-0">
-          {/* 배경 트랙 — 데이터 없는 부분을 연한 회색으로 채움 */}
+          {/* 배경 트랙 — 데이터 없는 부분을 테마 border 색상으로 채움 (라이트/다크 자동 대응) */}
           <circle
             cx={CX}
             cy={CY}
             r={RADIUS}
             fill="none"
-            stroke="#f1f5f9"
+            style={{ stroke: 'var(--border)' }}
             strokeWidth={STROKE_WIDTH}
           />
           {/* 카테고리별 세그먼트 — 뒤에서 앞으로 쌓이므로 역순 렌더 */}

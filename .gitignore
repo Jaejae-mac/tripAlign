@@ -47,3 +47,6 @@ next-env.d.ts
 design-system/
 skills-lock.json
 PLAN.md
+
+# 로컬 전용 운영 문서
+docs/

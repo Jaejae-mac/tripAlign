@@ -7,6 +7,7 @@ import { Toaster } from '@/components/ui/sonner'
 import { PlaneLoader } from '@/components/ui/PlaneLoader'
 import { ServiceWorkerInit } from '@/components/ServiceWorkerInit'
 import { SplashScreen } from '@/components/SplashScreen'
+import { ThemeProvider } from '@/components/providers/ThemeProvider'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -100,17 +101,26 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="ko" className="h-full antialiased" style={{ backgroundColor: '#F0FDFA', colorScheme: 'light' }}>
-      <body className="min-h-full flex flex-col" style={{ backgroundColor: '#F0FDFA' }}>
-        {/* 초기 로드 스플래시 — SSR로 HTML에 포함되어 검은 화면 없이 즉시 표시 */}
-        <SplashScreen />
-        {children}
-        {/* 전역 토스트 알림 */}
-        <Toaster position="top-center" richColors />
-        {/* 전역 비행기 로딩 오버레이 — DB/서버 요청 대기 시 표시 */}
-        <PlaneLoader />
-        {/* 서비스 워커 등록 — 앱 셸 캐싱으로 콜드 스타트 검은 화면 방지 */}
-        <ServiceWorkerInit />
+    // suppressHydrationWarning: next-themes가 클라이언트에서 "dark" 클래스를 추가할 때
+    // 서버/클라이언트 간 className 불일치 경고를 무시하도록 설정
+    <html lang="ko" className="h-full antialiased" suppressHydrationWarning>
+      <body className="min-h-full flex flex-col">
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          {/* 초기 로드 스플래시 — SSR로 HTML에 포함되어 검은 화면 없이 즉시 표시 */}
+          <SplashScreen />
+          {children}
+          {/* 전역 토스트 알림 */}
+          <Toaster position="top-center" richColors />
+          {/* 전역 비행기 로딩 오버레이 — DB/서버 요청 대기 시 표시 */}
+          <PlaneLoader />
+          {/* 서비스 워커 등록 — 앱 셸 캐싱으로 콜드 스타트 검은 화면 방지 */}
+          <ServiceWorkerInit />
+        </ThemeProvider>
       </body>
     </html>
   )

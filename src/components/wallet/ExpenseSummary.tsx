@@ -41,15 +41,17 @@ function AnimatedTotal({ value }: { value: number }) {
 
 interface ExpenseSummaryProps {
   expenses: Expense[]
-  /** 지출일별 환율 맵 — 있으면 각 지출의 지출일 환율로 KRW 환산 합계 표시 */
-  ratesByDate?: Record<string, KrwRates>
+  /** 지출 ID별 최종 유효 환율 맵 — 건별/플랜/자동 환율이 모두 반영된 결과 */
+  effectiveRatesByExpenseId?: Record<string, KrwRates>
   /** 여행 총 예산 — 있으면 예산 대비 진행 바 표시 */
   budget?: number | null
   /** 예산 통화 코드 */
   budgetCurrency?: string | null
+  /** 플랜 수동 환율이 적용 중인 통화 목록 */
+  manualCurrencies?: Set<string>
 }
 
-export function ExpenseSummary({ expenses, ratesByDate, budget, budgetCurrency }: ExpenseSummaryProps) {
+export function ExpenseSummary({ expenses, effectiveRatesByExpenseId, budget, budgetCurrency, manualCurrencies }: ExpenseSummaryProps) {
   const summaries = calcSummaryByCategory(expenses)
 
   // 원시 합계 (통화 무시) — 단일 통화일 때만 의미 있음
@@ -57,11 +59,11 @@ export function ExpenseSummary({ expenses, ratesByDate, budget, budgetCurrency }
   const currency = expenses[0]?.currency ?? 'KRW'
   const hasNonKrw = expenses.some((e) => e.currency !== 'KRW')
 
-  // 외화 포함 시 지출일별 환율로 전체 KRW 환산 합계 계산
+  // 외화 포함 시 건별 유효 환율로 전체 KRW 환산 합계 계산
   const krwTotal =
-    ratesByDate && hasNonKrw
+    effectiveRatesByExpenseId && hasNonKrw
       ? expenses.reduce((sum, e) => {
-          const rates = ratesByDate[e.date]
+          const rates = effectiveRatesByExpenseId[e.id]
           return sum + (rates ? convertToKrw(e.amount, e.currency, rates) : e.amount)
         }, 0)
       : null
@@ -75,11 +77,11 @@ export function ExpenseSummary({ expenses, ratesByDate, budget, budgetCurrency }
 
   /**
    * 카테고리별 KRW 환산 합계 — 막대 그래프·도넛 차트 비율 계산에 사용
-   * 지출일별 환율을 적용해 통화가 다른 지출의 비율을 정확히 계산
+   * 건별 유효 환율을 사용해 통화가 다른 지출의 비율을 정확히 계산
    */
-  const krwCategoryMap = ratesByDate
+  const krwCategoryMap = effectiveRatesByExpenseId
     ? expenses.reduce((map, e) => {
-        const rates = ratesByDate[e.date]
+        const rates = effectiveRatesByExpenseId[e.id]
         const krw = rates ? convertToKrw(e.amount, e.currency, rates) : e.amount
         map.set(e.category, (map.get(e.category) ?? 0) + krw)
         return map
@@ -107,7 +109,7 @@ export function ExpenseSummary({ expenses, ratesByDate, budget, budgetCurrency }
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, ease: 'easeOut' }}
-      className="bg-white rounded-2xl p-4 border border-border space-y-4"
+      className="bg-card rounded-2xl p-4 border border-border space-y-4"
       style={{ boxShadow: 'var(--shadow-md)' }}
     >
       {/* 총 지출 — 카운트업 애니메이션 */}
@@ -128,10 +130,12 @@ export function ExpenseSummary({ expenses, ratesByDate, budget, budgetCurrency }
               {displayCurrency}
             </span>
           </span>
-          {/* KRW 환산 적용 시 "지출일 기준 환율" 레이블 표시 */}
+          {/* KRW 환산 적용 시 환율 기준 레이블 */}
           {krwTotal !== null && (
             <p className="text-xs text-muted-foreground/60 mt-0.5">
-              지출일 기준 환율
+              {expenses.some((e) => e.rate_mode === 'custom') || (manualCurrencies && manualCurrencies.size > 0)
+                ? '수동 환율 포함'
+                : '지출일 기준 환율'}
             </p>
           )}
         </div>

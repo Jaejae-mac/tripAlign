@@ -5,7 +5,7 @@
  * 카테고리 아이콘, 제목, 금액, 메모를 보여주고 수정/삭제 메뉴를 제공합니다.
  * 외화 지출의 경우 당일 환율 기준 KRW 환산 금액을 함께 표시합니다.
  */
-import { MoreVertical, Pencil, Trash2 } from 'lucide-react'
+import { MoreVertical, Pencil, Trash2, PencilLine, BadgeDollarSign } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,9 +25,11 @@ interface ExpenseItemProps {
   onDelete: () => void
   /** 환율 정보 — 없으면 KRW 환산 표시 생략 */
   krwRates?: KrwRates
+  /** 수동 환율이 적용 중인 통화 목록 — 해당 통화면 수동 아이콘 표시 */
+  manualCurrencies?: Set<string>
 }
 
-export function ExpenseItem({ expense, onView, onEdit, onDelete, krwRates }: ExpenseItemProps) {
+export function ExpenseItem({ expense, onView, onEdit, onDelete, krwRates, manualCurrencies }: ExpenseItemProps) {
   const category = CATEGORY_CONFIG[expense.category]
 
   // 외화인 경우에만 KRW 환산 금액 계산 (환율 정보가 없으면 null)
@@ -36,9 +38,14 @@ export function ExpenseItem({ expense, onView, onEdit, onDelete, krwRates }: Exp
       ? convertToKrw(expense.amount, expense.currency, krwRates)
       : null
 
+  // 건별 직접 지정 환율인지 확인 (최우선 — 다른 수동 환율과 구분)
+  const isCustomRate = expense.rate_mode === 'custom'
+  // 플랜 수동 환율이 적용 중인지 확인 (건별 환율이 없을 때만)
+  const isPlanManualRate = !isCustomRate && !!(manualCurrencies?.has(expense.currency))
+
   return (
     <div
-      className="flex items-center gap-3 bg-white rounded-xl p-3.5 border border-border"
+      className="flex items-center gap-3 bg-card rounded-xl p-3.5 border border-border"
       style={{ boxShadow: 'var(--shadow-sm)' }}
     >
       {/* 클릭 영역: 아이콘 + 정보 + 금액 — 탭하면 상세 팝업 오픈 */}
@@ -75,10 +82,18 @@ export function ExpenseItem({ expense, onView, onEdit, onDelete, krwRates }: Exp
             {expense.amount.toLocaleString()}
           </p>
           <p className="text-xs text-muted-foreground">{expense.currency}</p>
-          {/* 외화일 때 KRW 환산 금액 표시 */}
+          {/* 외화일 때 KRW 환산 금액 표시 — 환율 종류에 따라 아이콘 구분 */}
           {krwAmount !== null && (
-            <p className="text-xs text-primary/70 mt-0.5">
+            <p className="text-xs text-primary/70 mt-0.5 flex items-center justify-end gap-0.5">
               ≈ {krwAmount.toLocaleString()}원
+              {/* 건별 직접 지정 환율: 달러 배지 아이콘 */}
+              {isCustomRate && (
+                <BadgeDollarSign className="w-2.5 h-2.5 text-primary/60 shrink-0" aria-label="건별 직접 지정 환율" />
+              )}
+              {/* 플랜 수동 환율: 연필 아이콘 */}
+              {isPlanManualRate && (
+                <PencilLine className="w-2.5 h-2.5 text-primary/50 shrink-0" aria-label="플랜 수동 환율 적용 중" />
+              )}
             </p>
           )}
         </div>

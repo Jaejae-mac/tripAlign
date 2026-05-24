@@ -65,6 +65,8 @@
 }
 
 .dark {
+  /* 다크 모드 브랜드 색상 — 라이트 모드의 --brand-bg를 어두운 배경으로 대체 */
+  --brand-bg: oklch(0.12 0.02 181);
   --background: oklch(0.12 0.02 181);
   --foreground: oklch(0.95 0.01 183);
   --card: oklch(0.17 0.02 181);
@@ -141,6 +143,11 @@ body {
   overflow-x: hidden;
   /* 모바일 pull-to-refresh 비활성화 */
   overscroll-behavior-y: none;
+}
+
+/* 다크 모드: body 배경을 어두운 배경색으로 전환 */
+.dark body {
+  background-color: var(--background);
 }
 
 h1, h2, h3, h4, h5, h6 {

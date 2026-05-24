@@ -7,7 +7,7 @@
  */
 import { format, parseISO } from 'date-fns'
 import { ko } from 'date-fns/locale'
-import { Calendar } from 'lucide-react'
+import { Calendar, BadgeDollarSign, PencilLine, Receipt } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -43,6 +43,9 @@ export function ExpenseItemDetailDialog({
     krwRates && expense.currency !== 'KRW'
       ? convertToKrw(expense.amount, expense.currency, krwRates)
       : null
+
+  // 건별 직접 지정 환율 여부
+  const isCustomRate = expense.rate_mode === 'custom' && expense.exchange_rate != null
 
   /** 수정: 팝업 먼저 닫고 수정 다이얼로그 열기 */
   const handleEdit = () => {
@@ -109,6 +112,24 @@ export function ExpenseItemDetailDialog({
                 ≈ {krwAmount.toLocaleString()}원
               </p>
             )}
+            {/* 적용 환율 정보 — 외화일 때만 표시 */}
+            {expense.currency !== 'KRW' && (
+              <div className="flex items-center gap-1.5 mt-1">
+                {isCustomRate ? (
+                  <>
+                    <BadgeDollarSign className="w-3.5 h-3.5 text-primary/60 shrink-0" />
+                    <p className="text-xs text-muted-foreground">
+                      직접 지정 환율: {expense.unit ?? 1} {expense.currency} = {expense.exchange_rate?.toLocaleString()}원
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <PencilLine className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
+                    <p className="text-xs text-muted-foreground">지출일 기준 환율</p>
+                  </>
+                )}
+              </div>
+            )}
           </div>
 
           {/* 날짜 */}
@@ -129,6 +150,35 @@ export function ExpenseItemDetailDialog({
               <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
                 {expense.memo}
               </p>
+            </div>
+          )}
+
+          {/* 영수증 이미지 — 첨부된 경우에만 표시 */}
+          {expense.receipt_url && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-1.5">
+                <Receipt className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                <p className="text-xs font-medium text-muted-foreground">영수증</p>
+              </div>
+              {/* 클릭 시 원본 이미지를 새 탭으로 열기 */}
+              <a
+                href={expense.receipt_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block group"
+                aria-label="영수증 원본 이미지 보기"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={expense.receipt_url}
+                  alt="영수증"
+                  className={[
+                    'w-full max-h-48 object-cover rounded-xl border border-border',
+                    'group-hover:opacity-90 transition-opacity duration-150',
+                  ].join(' ')}
+                />
+                <p className="text-xs text-primary/70 mt-1 text-center">탭하여 원본 보기</p>
+              </a>
             </div>
           )}
         </div>

@@ -81,7 +81,7 @@ function SortableItemRow({
     <li
       ref={setNodeRef}
       style={style}
-      className={`flex items-center gap-2 px-3 py-2 border-b border-border/60 last:border-b-0 bg-card ${
+      className={`flex items-center gap-2 px-3 py-2 border-b border-border/60 last:border-b-0 bg-card transition-colors ${
         isDragging ? 'opacity-40 z-10 relative shadow-md' : ''
       }`}
     >
@@ -110,8 +110,7 @@ function SortableItemRow({
         <input
           value={editValue}
           onChange={(e) => onEditChange(item.id, e.target.value)}
-          className="flex-1 text-sm min-w-0 bg-white rounded px-2 py-1 border border-border/80 focus:border-orange-400 focus:outline-none"
-          style={{ color: 'var(--foreground)' }}
+          className="flex-1 text-sm min-w-0 bg-background text-foreground rounded px-2 py-1 border border-border/80 focus:border-orange-400 focus:outline-none"
         />
       ) : (
         <span
@@ -250,8 +249,11 @@ export function ChecklistGroup({
     <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
       {/* 그룹 헤더 */}
       <div
-        className="flex items-center gap-1 px-3 py-3 border-b border-border transition-colors duration-200"
-        style={{ backgroundColor: isEditing ? '#fefce8' : 'hsl(var(--muted) / 0.4)' }}
+        className={`flex items-center gap-1 px-3 py-3 border-b border-border transition-colors duration-200 ${
+          isEditing
+            ? 'bg-amber-50 dark:bg-amber-950/30'
+            : 'bg-muted/40'
+        }`}
       >
         {/* 그룹 드래그 핸들 — 편집 모드에서 숨김 */}
         {!isEditing && (
@@ -271,11 +273,11 @@ export function ChecklistGroup({
           </span>
           {totalCount > 0 && (
             <span
-              className="shrink-0 text-[11px] font-medium px-2 py-0.5 rounded-full"
-              style={{
-                backgroundColor: checkedCount === totalCount ? '#dcfce7' : '#f1f5f9',
-                color: checkedCount === totalCount ? '#16a34a' : '#64748b',
-              }}
+              className={`shrink-0 text-[11px] font-medium px-2 py-0.5 rounded-full ${
+                checkedCount === totalCount
+                  ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
+                  : 'bg-muted text-muted-foreground'
+              }`}
             >
               {checkedCount}/{totalCount}
             </span>

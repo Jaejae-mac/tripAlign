@@ -15,6 +15,9 @@ export type ExpenseCategory =
 /** 지원 통화 목록 */
 export type Currency = 'KRW' | 'USD' | 'JPY' | 'EUR' | 'CNY'
 
+/** 건별 환율 모드 */
+export type ExpenseRateMode = 'plan' | 'custom'
+
 /** DB에서 조회한 지출 항목 */
 export interface Expense {
   id: string
@@ -26,6 +29,12 @@ export interface Expense {
   currency: Currency
   memo: string | null
   created_at: string
+  // 건별 환율 필드 (migration_expense_exchange_rate.sql 추가)
+  rate_mode: ExpenseRateMode   // 'plan' | 'custom'
+  exchange_rate: number | null // unit 기준 KRW 금액 (custom 모드에서만 사용)
+  unit: number                 // 기준 단위 (JPY: 100, 나머지: 1)
+  // 영수증 이미지 URL (migration_expense_receipt.sql 추가)
+  receipt_url: string | null
 }
 
 /** 새 지출 항목 생성 시 DTO */
@@ -37,6 +46,10 @@ export interface CreateExpenseDto {
   amount: number
   currency: Currency
   memo?: string
+  rate_mode?: ExpenseRateMode
+  exchange_rate?: number | null
+  unit?: number
+  receipt_url?: string | null
 }
 
 /** 지출 수정 시 DTO */
@@ -47,6 +60,10 @@ export interface UpdateExpenseDto {
   amount?: number
   currency?: Currency
   memo?: string
+  rate_mode?: ExpenseRateMode
+  exchange_rate?: number | null
+  unit?: number
+  receipt_url?: string | null
 }
 
 /** 지출 추가/수정 폼 데이터 */

@@ -8,19 +8,23 @@ import { useState, useEffect, useCallback } from 'react'
 import { format, parseISO } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, Receipt } from 'lucide-react'
+import { Plus, Receipt, Settings2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { ExpenseSummary } from './ExpenseSummary'
 import { ExpenseItem } from './ExpenseItem'
 import { ExpenseAddDialog } from './ExpenseAddDialog'
 import { ExpenseItemDetailDialog } from './ExpenseItemDetailDialog'
+import { ExchangeRateSettingsDialog } from './ExchangeRateSettingsDialog'
 import { getExpenses, deleteExpense } from '@/services/expense.service'
+import { deleteReceiptImage } from '@/services/storage.service'
+import { getPlanExchangeRates } from '@/services/exchange-rate.service'
 import { fetchKrwRates, convertToKrw } from '@/services/currency.service'
 import { CATEGORY_CONFIG } from '@/lib/constants/schedule'
 import { toast } from 'sonner'
 import type { Expense, ExpenseCategory } from '@/types/expense.types'
 import type { KrwRates } from '@/services/currency.service'
+import type { PlanExchangeRate } from '@/types/exchange-rate.types'
 
 interface ExpenseViewProps {
   planId: string
@@ -53,8 +57,12 @@ export function ExpenseView({ planId, budget, budgetCurrency }: ExpenseViewProps
   // 상세 팝업
   const [viewingExpense, setViewingExpense] = useState<Expense | null>(null)
   const [isDetailOpen, setIsDetailOpen] = useState(false)
-  // 날짜별 환율 맵 — 지출일 기준 환율 적용
-  const [ratesByDate, setRatesByDate] = useState<Record<string, KrwRates>>({})
+  // 날짜별 API 환율 맵 (raw) — 지출일 기준 환율
+  const [apiRatesByDate, setApiRatesByDate] = useState<Record<string, KrwRates>>({})
+  // 플랜에 저장된 수동 환율 설정 목록
+  const [planRates, setPlanRates] = useState<PlanExchangeRate[]>([])
+  // 환율 설정 다이얼로그 표시 여부
+  const [isRateSettingsOpen, setIsRateSettingsOpen] = useState(false)
   // 카테고리 필터 — 'all'이면 전체 표시
   const [selectedCategory, setSelectedCategory] = useState<ExpenseCategory | 'all'>('all')
 
@@ -75,7 +83,21 @@ export function ExpenseView({ planId, budget, budgetCurrency }: ExpenseViewProps
     fetchExpenses()
   }, [fetchExpenses])
 
-  // expenses 로드 완료 후 고유 날짜 추출 → 지출일별 환율 병렬 fetch
+  /** 플랜에 저장된 수동 환율 설정 조회 */
+  const fetchPlanRates = useCallback(async () => {
+    try {
+      const rates = await getPlanExchangeRates(planId)
+      setPlanRates(rates)
+    } catch {
+      // 환율 설정 조회 실패 시 기본값(빈 배열)으로 유지 — 자동 환율이 사용됨
+    }
+  }, [planId])
+
+  useEffect(() => {
+    fetchPlanRates()
+  }, [fetchPlanRates])
+
+  // expenses 로드 완료 후 고유 날짜 추출 → 지출일별 API 환율 병렬 fetch
   useEffect(() => {
     if (expenses.length === 0) return
     const uniqueDates = [...new Set(expenses.map((e) => e.date))]
@@ -88,9 +110,59 @@ export function ExpenseView({ planId, budget, budgetCurrency }: ExpenseViewProps
     ).then((results) => {
       const map: Record<string, KrwRates> = {}
       results.forEach((r) => { if (r) map[r.date] = r.rates })
-      setRatesByDate(map)
+      setApiRatesByDate(map)
     })
   }, [expenses])
+
+  /**
+   * 플랜 수동 환율이 설정된 통화 목록
+   * 지출 항목 카드에서 플랜 수동 환율 아이콘 표시에 사용
+   */
+  const manualCurrencies = new Set(
+    planRates.filter((r) => r.mode === 'manual').map((r) => r.currency)
+  )
+
+  /**
+   * 날짜별 최종 환율: API 환율 + 플랜 수동 설정 override
+   * 수동 모드인 통화는 API 환율 대신 직접 입력한 값으로 덮어씌움
+   */
+  const ratesByDate: Record<string, KrwRates> = {}
+  for (const [date, apiRates] of Object.entries(apiRatesByDate)) {
+    const effectiveRates = { ...apiRates }
+    planRates.forEach((r) => {
+      if (r.mode === 'manual' && r.custom_rate > 0) {
+        const krwPer1Unit = r.custom_rate / r.unit
+        ;(effectiveRates as Record<string, number>)[r.currency] = krwPer1Unit
+      }
+    })
+    ratesByDate[date] = effectiveRates
+  }
+
+  /**
+   * 지출 건별 최종 유효 환율을 반환합니다.
+   * 우선순위: 1) 건별 수동 환율 → 2) 플랜 환율(자동/수동) → 3) API 자동 환율
+   * API 환율이 아직 로드되지 않았으면 undefined 반환 → 호출자가 fallback 처리
+   */
+  function getEffectiveRates(expense: Expense): KrwRates | undefined {
+    const base = ratesByDate[expense.date]
+    if (!base) return undefined  // 환율 로드 전 — 빈 객체로 NaN 발생 방지
+    if (expense.rate_mode === 'custom' && expense.exchange_rate != null) {
+      // 건별 환율 override — exchange_rate는 unit 기준 KRW 금액
+      const krwPer1Unit = expense.exchange_rate / (expense.unit ?? 1)
+      return { ...base, [expense.currency]: krwPer1Unit } as KrwRates
+    }
+    return base
+  }
+
+  /**
+   * 지출 ID → 최종 유효 환율 맵 (ExpenseSummary, ExpenseItem에 전달)
+   * undefined인 경우(환율 미로드)는 맵에서 제외 → 수신측에서 e.amount로 fallback
+   */
+  const effectiveRatesByExpenseId: Record<string, KrwRates> = {}
+  expenses.forEach((e) => {
+    const rates = getEffectiveRates(e)
+    if (rates) effectiveRatesByExpenseId[e.id] = rates
+  })
 
   /** 지출 셀 클릭 시 상세 팝업 열기 */
   const handleView = (expense: Expense) => {
@@ -98,13 +170,22 @@ export function ExpenseView({ planId, budget, budgetCurrency }: ExpenseViewProps
     setIsDetailOpen(true)
   }
 
-  /** 지출 항목 삭제 */
+  /** 지출 항목 삭제 — 영수증 이미지가 있으면 Storage에서도 함께 삭제 */
   const handleDelete = async (expenseId: string) => {
     const confirmed = window.confirm('이 지출 내역을 삭제하시겠습니까?')
     if (!confirmed) return
 
+    const target = expenses.find((e) => e.id === expenseId)
+
     try {
       await deleteExpense(expenseId)
+      // DB 삭제 후 영수증 이미지가 있으면 Storage에서도 삭제
+      // Storage 삭제 실패는 지출 삭제 성공과 독립적으로 처리 (UX 차단 방지)
+      if (target?.receipt_url) {
+        deleteReceiptImage(target.receipt_url).catch((err) => {
+          console.error('[영수증 이미지 삭제 실패]', err)
+        })
+      }
       setExpenses((prev) => prev.filter((e) => e.id !== expenseId))
       toast.success('지출이 삭제되었습니다.')
     } catch {
@@ -124,7 +205,7 @@ export function ExpenseView({ planId, budget, budgetCurrency }: ExpenseViewProps
     return (
       <div className="space-y-3">
         {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="h-16 rounded-xl bg-white animate-pulse border border-border" />
+          <div key={i} className="h-16 rounded-xl bg-card animate-pulse border border-border" />
         ))}
       </div>
     )
@@ -132,8 +213,29 @@ export function ExpenseView({ planId, budget, budgetCurrency }: ExpenseViewProps
 
   return (
     <div className="space-y-4">
-      {/* 지출 추가 버튼 */}
-      <div className="flex justify-end">
+      {/* 지출 추가 버튼 + 환율 설정 버튼 */}
+      <div className="flex items-center justify-between">
+        {/* 환율 설정 버튼 — 수동 환율이 하나라도 있으면 강조 표시 */}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setIsRateSettingsOpen(true)}
+          className={[
+            'gap-1.5 cursor-pointer text-xs',
+            manualCurrencies.size > 0
+              ? 'text-primary font-medium'
+              : 'text-muted-foreground',
+          ].join(' ')}
+        >
+          <Settings2 className="w-3.5 h-3.5" />
+          환율 설정
+          {manualCurrencies.size > 0 && (
+            <span className="bg-primary/10 text-primary rounded-full px-1.5 py-0.5 text-xs">
+              수동 {manualCurrencies.size}
+            </span>
+          )}
+        </Button>
+
         <Button
           onClick={() => {
             setEditingExpense(null)
@@ -159,7 +261,7 @@ export function ExpenseView({ planId, budget, budgetCurrency }: ExpenseViewProps
               whitespace-nowrap shrink-0 border transition-all duration-200 cursor-pointer
               ${selectedCategory === 'all'
                 ? 'bg-primary text-primary-foreground border-primary'
-                : 'bg-white text-muted-foreground border-border hover:border-primary/40'
+                : 'bg-card text-muted-foreground border-border hover:border-primary/40'
               }
             `}
           >
@@ -179,7 +281,7 @@ export function ExpenseView({ planId, budget, budgetCurrency }: ExpenseViewProps
                   whitespace-nowrap shrink-0 border transition-all duration-200 cursor-pointer
                   ${isSelected
                     ? 'text-white border-transparent'
-                    : 'bg-white text-muted-foreground border-border hover:border-primary/40'
+                    : 'bg-card text-muted-foreground border-border hover:border-primary/40'
                   }
                 `}
                 style={isSelected ? { backgroundColor: config.color, borderColor: config.color } : {}}
@@ -199,9 +301,10 @@ export function ExpenseView({ planId, budget, budgetCurrency }: ExpenseViewProps
       {filteredExpenses.length > 0 && (
         <ExpenseSummary
           expenses={filteredExpenses}
-          ratesByDate={ratesByDate}
+          effectiveRatesByExpenseId={effectiveRatesByExpenseId}
           budget={budget}
           budgetCurrency={budgetCurrency}
+          manualCurrencies={manualCurrencies}
         />
       )}
 
@@ -252,14 +355,13 @@ export function ExpenseView({ planId, budget, budgetCurrency }: ExpenseViewProps
               const allSameCurrency = dayExpenses.every(
                 (e) => e.currency === dayExpenses[0]?.currency
               )
-              const dayRates = ratesByDate[dateStr]
-              const krwDayTotal =
-                dayRates && dayHasNonKrw
-                  ? dayExpenses.reduce(
-                      (sum, e) => sum + convertToKrw(e.amount, e.currency, dayRates),
-                      0
-                    )
-                  : null
+              // 날짜 합계는 각 지출의 건별 유효 환율로 계산 (건별 환율 반영)
+              const krwDayTotal = dayHasNonKrw
+                ? dayExpenses.reduce((sum, e) => {
+                    const rates = effectiveRatesByExpenseId[e.id]
+                    return rates ? sum + convertToKrw(e.amount, e.currency, rates) : sum + e.amount
+                  }, 0)
+                : null
 
               return (
                 <motion.div
@@ -307,7 +409,8 @@ export function ExpenseView({ planId, budget, budgetCurrency }: ExpenseViewProps
                         >
                           <ExpenseItem
                             expense={expense}
-                            krwRates={ratesByDate[expense.date]}
+                            krwRates={effectiveRatesByExpenseId[expense.id]}
+                            manualCurrencies={manualCurrencies}
                             onView={() => handleView(expense)}
                             onEdit={() => {
                               setEditingExpense(expense)
@@ -337,7 +440,7 @@ export function ExpenseView({ planId, budget, budgetCurrency }: ExpenseViewProps
             if (!open) setViewingExpense(null)
           }}
           expense={viewingExpense}
-          krwRates={ratesByDate[viewingExpense.date]}
+          krwRates={effectiveRatesByExpenseId[viewingExpense.id]}
           onEdit={() => {
             setEditingExpense(viewingExpense)
             setIsAddDialogOpen(true)
@@ -356,6 +459,15 @@ export function ExpenseView({ planId, budget, budgetCurrency }: ExpenseViewProps
         planId={planId}
         editingExpense={editingExpense}
         onSaved={fetchExpenses}
+      />
+
+      {/* 환율 설정 다이얼로그 */}
+      <ExchangeRateSettingsDialog
+        open={isRateSettingsOpen}
+        onOpenChange={setIsRateSettingsOpen}
+        planId={planId}
+        planRates={planRates}
+        onSaved={fetchPlanRates}
       />
     </div>
   )

@@ -14,6 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import type { User } from '@supabase/supabase-js'
@@ -45,7 +46,7 @@ export function Header({ user }: HeaderProps) {
     'U'
 
   return (
-    <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-border">
+    <header className="sticky top-0 z-50 bg-card/80 backdrop-blur-md border-b border-border">
       <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
         {/* 로고 — 클릭 시 메인 페이지로 이동 */}
         <button
@@ -60,6 +61,10 @@ export function Header({ user }: HeaderProps) {
             TripAlign
           </span>
         </button>
+
+        {/* 우측 액션 영역: 다크모드 토글 + 사용자 메뉴 */}
+        <div className="flex items-center gap-1">
+          <ThemeToggle />
 
         {/* 사용자 메뉴 */}
         <DropdownMenu>
@@ -95,6 +100,7 @@ export function Header({ user }: HeaderProps) {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        </div>
       </div>
     </header>
   )
