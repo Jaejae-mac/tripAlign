@@ -101,18 +101,27 @@ export function DayCard({ planId, date, dayNumber }: DayCardProps) {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* 지도 보기 버튼 — 좌표가 있는 항목이 1개 이상일 때만 활성화 */}
-          <Button
-            onClick={() => setIsMapOpen(true)}
-            size="sm"
-            variant="outline"
-            className="gap-1.5 cursor-pointer"
-            disabled={!items.some((i) => i.lat !== null && i.lng !== null)}
-            title="일정 경로 지도 보기"
-          >
-            <Map className="w-3.5 h-3.5" />
-            지도
-          </Button>
+          {/* 지도 보기 버튼 — Google Places로 선택된 장소(좌표)가 있어야 활성화 */}
+          {(() => {
+            const hasMapItems = items.some((i) => i.lat !== null && i.lng !== null)
+            return (
+              <Button
+                onClick={() => setIsMapOpen(true)}
+                size="sm"
+                variant="outline"
+                className="gap-1.5 cursor-pointer"
+                disabled={!hasMapItems}
+                title={
+                  hasMapItems
+                    ? '일정 경로를 지도에서 보기'
+                    : '장소 추가 시 Google Places 자동완성으로 선택하면 지도가 활성화됩니다'
+                }
+              >
+                <Map className="w-3.5 h-3.5" />
+                지도
+              </Button>
+            )
+          })()}
 
           {/* 일정 추가 버튼 */}
           <Button
