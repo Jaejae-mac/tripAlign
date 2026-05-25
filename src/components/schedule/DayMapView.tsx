@@ -5,7 +5,7 @@
  * lat/lng가 있는 일정 항목들을 번호 마커로 표시하고
  * 마커 클릭 시 일정 제목과 시간을 InfoWindow로 팝업합니다.
  */
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { GoogleMap, Marker, InfoWindow } from '@react-google-maps/api'
 import { MapPin, Loader2 } from 'lucide-react'
 import { useMapsLoaded } from '@/components/providers/GoogleMapsProvider'
@@ -48,6 +48,8 @@ export function DayMapView({ items }: DayMapViewProps) {
 
   // 클릭한 마커의 인덱스 (InfoWindow 표시용)
   const [activeIndex, setActiveIndex] = useState<number | null>(null)
+  // panTo 호출을 위해 map 인스턴스를 ref로 보관
+  const mapRef = useRef<google.maps.Map | null>(null)
 
   // 지도 중심: 첫 번째 항목 기준, 없으면 서울 기본값
   const center =
@@ -56,6 +58,7 @@ export function DayMapView({ items }: DayMapViewProps) {
       : { lat: 37.5665, lng: 126.978 }
 
   const handleMapLoad = useCallback((map: google.maps.Map) => {
+    mapRef.current = map
     // 2개 이상의 마커가 있으면 전체가 보이도록 자동 범위 조정
     if (mappableItems.length > 1) {
       const bounds = new google.maps.LatLngBounds()
@@ -63,6 +66,12 @@ export function DayMapView({ items }: DayMapViewProps) {
       map.fitBounds(bounds, { top: 60, right: 40, bottom: 40, left: 40 })
     }
   }, [mappableItems])
+
+  /** 마커 클릭 시 해당 핀을 지도 중앙으로 이동 후 InfoWindow 표시 */
+  const handleMarkerClick = useCallback((index: number, lat: number, lng: number) => {
+    setActiveIndex(index)
+    mapRef.current?.panTo({ lat, lng })
+  }, [])
 
   if (mappableItems.length === 0) {
     return (
@@ -99,13 +108,14 @@ export function DayMapView({ items }: DayMapViewProps) {
           }}
           // 방문완료 항목은 흐리게 표시
           opacity={item.status === 'completed' ? 0.5 : 1}
-          onClick={() => setActiveIndex(index)}
+          onClick={() => handleMarkerClick(index, item.lat, item.lng)}
         >
-          {/* 마커 클릭 시 일정 정보 InfoWindow */}
+          {/* 마커 클릭 시 일정 정보 InfoWindow — disableAutoPan으로 지도 자동이동 방지 */}
           {activeIndex === index && (
             <InfoWindow
               position={{ lat: item.lat, lng: item.lng }}
               onCloseClick={() => setActiveIndex(null)}
+              options={{ disableAutoPan: true }}
             >
               <div className="px-1 py-0.5 min-w-[120px]">
                 <p className="text-sm font-semibold text-gray-900">{item.title}</p>
