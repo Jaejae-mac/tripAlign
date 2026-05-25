@@ -7,6 +7,7 @@
  * AnimatePresence로 항목 추가/삭제 시 부드러운 애니메이션을 제공합니다.
  */
 import { useState, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import dynamic from 'next/dynamic'
 import { motion, AnimatePresence } from 'framer-motion'
 import { format } from 'date-fns'
@@ -43,6 +44,8 @@ export function DayCard({ planId, date, dayNumber }: DayCardProps) {
   const [isDetailOpen, setIsDetailOpen] = useState(false)
   // 지도 뷰 바텀시트
   const [isMapOpen, setIsMapOpen] = useState(false)
+  // SSR에서는 document가 없으므로 클라이언트 마운트 후에만 portal을 렌더링
+  const [mounted, setMounted] = useState(false)
 
   const dateStr = format(date, 'yyyy-MM-dd')
 
@@ -62,6 +65,8 @@ export function DayCard({ planId, date, dayNumber }: DayCardProps) {
   useEffect(() => {
     fetchItems()
   }, [fetchItems])
+
+  useEffect(() => { setMounted(true) }, [])
 
   /** 일정 추가/수정 완료 후 목록 갱신 */
   const handleSaved = () => {
@@ -218,56 +223,61 @@ export function DayCard({ planId, date, dayNumber }: DayCardProps) {
         onSaved={handleSaved}
       />
 
-      {/* 지도 뷰 바텀시트 — 화면 하단에서 슬라이드 업 */}
-      <AnimatePresence>
-        {isMapOpen && (
-          <>
-            {/* 딤 배경 */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="fixed inset-0 bg-black/50 z-40"
-              onClick={() => setIsMapOpen(false)}
-            />
-            {/* 바텀시트 */}
-            <motion.div
-              initial={{ y: '100%' }}
-              animate={{ y: 0 }}
-              exit={{ y: '100%' }}
-              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-              className="fixed bottom-0 left-0 right-0 z-50 flex flex-col rounded-t-2xl overflow-hidden bg-background"
-              style={{ height: '65vh' }}
-            >
-              {/* 핸들 + 헤더 */}
-              <div className="flex items-center justify-between px-4 py-3 border-b shrink-0">
-                <div className="flex items-center gap-2">
-                  <Map className="w-4 h-4 text-primary" />
-                  <span className="font-semibold text-sm">
-                    {format(date, 'M월 d일', { locale: ko })} 일정 경로
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    ({items.filter((i) => i.lat !== null).length}개 장소)
-                  </span>
+      {/* 지도 뷰 바텀시트 — document.body에 portal로 렌더링
+          DayCardCarousel의 motion.div가 transform을 유지해 fixed 자식의 containing block을
+          뷰포트 대신 자신으로 교체하기 때문에, portal로 이 컨테이너 바깥에 마운트해야 함 */}
+      {mounted && createPortal(
+        <AnimatePresence>
+          {isMapOpen && (
+            <>
+              {/* 딤 배경 */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="fixed inset-0 bg-black/50 z-40"
+                onClick={() => setIsMapOpen(false)}
+              />
+              {/* 바텀시트 */}
+              <motion.div
+                initial={{ y: '100%' }}
+                animate={{ y: 0 }}
+                exit={{ y: '100%' }}
+                transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+                className="fixed bottom-0 left-0 right-0 z-50 flex flex-col rounded-t-2xl overflow-hidden bg-background"
+                style={{ height: '65vh' }}
+              >
+                {/* 핸들 + 헤더 */}
+                <div className="flex items-center justify-between px-4 py-3 border-b shrink-0">
+                  <div className="flex items-center gap-2">
+                    <Map className="w-4 h-4 text-primary" />
+                    <span className="font-semibold text-sm">
+                      {format(date, 'M월 d일', { locale: ko })} 일정 경로
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      ({items.filter((i) => i.lat !== null).length}개 장소)
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setIsMapOpen(false)}
+                    className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-muted transition-colors cursor-pointer"
+                    aria-label="닫기"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
                 </div>
-                <button
-                  onClick={() => setIsMapOpen(false)}
-                  className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-muted transition-colors cursor-pointer"
-                  aria-label="닫기"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
 
-              {/* 지도 영역 */}
-              <div className="flex-1 overflow-hidden">
-                <DayMapView items={items} />
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+                {/* 지도 영역 */}
+                <div className="flex-1 overflow-hidden">
+                  <DayMapView items={items} />
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
     </div>
   )
 }
