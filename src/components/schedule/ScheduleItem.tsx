@@ -117,10 +117,11 @@ export function ScheduleItem({ item, onView, onEdit, onDeleted }: ScheduleItemPr
               <a
                 href={
                   item.place_id
-                    ? `https://www.google.com/maps/place/?q=place_id:${item.place_id}`
+                    // Maps URLs API: query_place_id로 정확한 장소를 핀포인트합니다
+                    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.location)}&query_place_id=${item.place_id}`
                     : item.lat && item.lng
                     ? `https://www.google.com/maps?q=${item.lat},${item.lng}`
-                    : `https://www.google.com/maps/search/${encodeURIComponent(item.location)}`
+                    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.location)}`
                 }
                 target="_blank"
                 rel="noopener noreferrer"

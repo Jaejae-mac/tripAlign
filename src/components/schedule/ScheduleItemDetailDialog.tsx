@@ -116,12 +116,14 @@ export function ScheduleItemDetailDialog({
   /** 구글 지도에서 장소 열기 (길안내 아님, 장소 정보 뷰) */
   function buildPlaceUrl() {
     if (item.place_id) {
-      return `https://www.google.com/maps/place/?q=place_id:${item.place_id}`
+      // Maps URLs API: query_place_id로 정확한 장소를 핀포인트합니다
+      // ?q=place_id:xxx 형식은 텍스트 검색으로 처리돼 "찾을 수 없음" 오류 발생
+      return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.location ?? '')}&query_place_id=${item.place_id}`
     }
     if (item.lat && item.lng) {
       return `https://www.google.com/maps?q=${item.lat},${item.lng}`
     }
-    return `https://www.google.com/maps/search/${encodeURIComponent(item.location ?? '')}`
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.location ?? '')}`
   }
 
   /** 방문 상태 낙관적 토글 */
