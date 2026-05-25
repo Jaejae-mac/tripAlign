@@ -215,12 +215,12 @@ export function ScheduleItemDetailDialog({
                 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium
                 cursor-pointer transition-all duration-200 border
                 ${isCompleted
-                  ? 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
-                  : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'
+                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20'
+                  : 'bg-muted border-border text-muted-foreground hover:bg-muted/60'
                 }
               `}
             >
-              <span className={`w-1.5 h-1.5 rounded-full ${isCompleted ? 'bg-emerald-500' : 'bg-gray-400'}`} />
+              <span className={`w-1.5 h-1.5 rounded-full ${isCompleted ? 'bg-emerald-500' : 'bg-muted-foreground/50'}`} />
               {isCompleted ? '방문완료' : '방문예정'}
             </button>
           </div>

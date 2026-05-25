@@ -135,7 +135,7 @@ export function DayCard({ planId, date, dayNumber }: DayCardProps) {
         // 로딩 스켈레톤
         <div className="space-y-3">
           {Array.from({ length: 2 }).map((_, i) => (
-            <div key={i} className="h-20 rounded-xl bg-white animate-pulse border border-border" />
+            <div key={i} className="h-20 rounded-xl bg-card animate-pulse border border-border" />
           ))}
         </div>
       ) : items.length === 0 ? (
