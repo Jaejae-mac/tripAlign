@@ -5,7 +5,7 @@
  * lat/lng가 있는 일정 항목들을 번호 마커로 표시하고
  * 마커 클릭 시 일정 제목과 시간을 InfoWindow로 팝업합니다.
  */
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useMemo } from 'react'
 import { GoogleMap, Marker, InfoWindow } from '@react-google-maps/api'
 import { MapPin, Loader2 } from 'lucide-react'
 import { useMapsLoaded } from '@/components/providers/GoogleMapsProvider'
@@ -51,11 +51,18 @@ export function DayMapView({ items }: DayMapViewProps) {
   // panTo 호출을 위해 map 인스턴스를 ref로 보관
   const mapRef = useRef<google.maps.Map | null>(null)
 
-  // 지도 중심: 첫 번째 항목 기준, 없으면 서울 기본값
-  const center =
-    mappableItems.length > 0
-      ? { lat: mappableItems[0].lat, lng: mappableItems[0].lng }
-      : { lat: 37.5665, lng: 126.978 }
+  // 지도 초기 중심 — 좌표 원시값을 deps로 써서 객체 참조를 안정적으로 유지
+  // center prop이 리렌더마다 새 객체로 생성되면 @react-google-maps/api가
+  // map.setCenter()를 재호출해 panTo 결과를 덮어쓰는 버그가 발생하므로 useMemo 필수
+  const firstLat = mappableItems[0]?.lat ?? null
+  const firstLng = mappableItems[0]?.lng ?? null
+  const center = useMemo(
+    () =>
+      firstLat !== null && firstLng !== null
+        ? { lat: firstLat, lng: firstLng }
+        : { lat: 37.5665, lng: 126.978 },
+    [firstLat, firstLng]
+  )
 
   const handleMapLoad = useCallback((map: google.maps.Map) => {
     mapRef.current = map
