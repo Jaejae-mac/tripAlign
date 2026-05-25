@@ -12,8 +12,8 @@
  *    404가 발생하고 앱이 동작하지 않는 문제가 있으므로 network-first를 사용합니다.
  */
 
-const STATIC_CACHE = 'tripalign-static-v2'
-const SHELL_CACHE  = 'tripalign-shell-v2'
+const STATIC_CACHE = 'tripalign-static-v3'
+const SHELL_CACHE  = 'tripalign-shell-v3'
 
 const SHELL_URLS = ['/', '/login']
 
@@ -61,18 +61,28 @@ self.addEventListener('fetch', (e) => {
     return
   }
 
-  // HTML 네비게이션: Network-first
-  // 새 배포 후 이전 HTML 캐시가 구 청크를 참조해 앱이 깨지는 문제 방지
+  // HTML 네비게이션: Network-first (5초 타임아웃)
+  // Safari에서 미들웨어(Supabase getUser + DB 쿼리)가 느릴 때 무한 대기를 방지합니다.
   if (request.mode === 'navigate') {
+    const TIMEOUT_MS = 5000
     e.respondWith(
-      fetch(request)
+      Promise.race([
+        fetch(request),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('sw-timeout')), TIMEOUT_MS)
+        ),
+      ])
         .then((res) => {
-          if (res.ok) {
+          if (res && res.ok) {
             caches.open(SHELL_CACHE).then((c) => c.put(request, res.clone()))
           }
           return res
         })
-        .catch(() => caches.match(request)) // 오프라인 폴백
+        .catch(async () => {
+          // 타임아웃 또는 네트워크 오류 → 캐시 폴백, 없으면 루트 캐시 반환
+          const cached = await caches.match(request)
+          return cached || caches.match('/')
+        })
     )
     return
   }

@@ -3,11 +3,13 @@
  * 모든 페이지에 공통으로 적용되는 메타데이터, 폰트, Toaster를 설정합니다.
  */
 import type { Metadata, Viewport } from 'next'
+import Script from 'next/script'
 import { Toaster } from '@/components/ui/sonner'
 import { PlaneLoader } from '@/components/ui/PlaneLoader'
 import { ServiceWorkerInit } from '@/components/ServiceWorkerInit'
 import { SplashScreen } from '@/components/SplashScreen'
 import { ThemeProvider } from '@/components/providers/ThemeProvider'
+import { GoogleMapsProvider } from '@/components/providers/GoogleMapsProvider'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -105,12 +107,35 @@ export default function RootLayout({
     // 서버/클라이언트 간 className 불일치 경고를 무시하도록 설정
     <html lang="ko" className="h-full antialiased" suppressHydrationWarning>
       <body className="min-h-full flex flex-col">
+        {/* 개발환경 전용: Safari에 등록된 구버전 SW를 즉시 해제하고 1회 자동 새로고침합니다.
+            SW가 구버전 JS를 캐시해 React 하이드레이션을 막는 문제를 해결합니다.
+            HTML은 항상 network-first로 받아오므로 SW와 무관하게 이 스크립트는 실행됩니다.
+            strategy="beforeInteractive": 다른 JS보다 먼저 실행되어 SW를 즉시 해제합니다. */}
+        {process.env.NODE_ENV === 'development' && (
+          <Script id="sw-dev-killer" strategy="beforeInteractive">{`
+            ;(function(){
+              if(!('serviceWorker' in navigator)) return;
+              navigator.serviceWorker.getRegistrations().then(function(rs){
+                if(!rs.length) return;
+                Promise.all(rs.map(function(r){ return r.unregister(); }))
+                  .then(function(){
+                    if(!sessionStorage.getItem('__sw_cleared')){
+                      sessionStorage.setItem('__sw_cleared','1');
+                      location.reload();
+                    }
+                  });
+              });
+            })();
+          `}</Script>
+        )}
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
           enableSystem
           disableTransitionOnChange
         >
+          {/* Google Maps JS API 로드 — places 라이브러리 포함 */}
+          <GoogleMapsProvider>
           {/* 초기 로드 스플래시 — SSR로 HTML에 포함되어 검은 화면 없이 즉시 표시 */}
           <SplashScreen />
           {children}
@@ -120,6 +145,7 @@ export default function RootLayout({
           <PlaneLoader />
           {/* 서비스 워커 등록 — 앱 셸 캐싱으로 콜드 스타트 검은 화면 방지 */}
           <ServiceWorkerInit />
+          </GoogleMapsProvider>
         </ThemeProvider>
       </body>
     </html>

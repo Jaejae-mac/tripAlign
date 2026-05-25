@@ -27,6 +27,9 @@ export interface ScheduleItem {
   location: string | null
   phone: string | null    // 전화번호 — 없으면 null
   status: VisitStatus  // 'pending'(방문예정) | 'completed'(방문완료)
+  lat: number | null      // 위도 — Google Places 선택 시 저장
+  lng: number | null      // 경도 — Google Places 선택 시 저장
+  place_id: string | null // Google Places ID — 평점·영업시간 재조회용
   created_at: string
 }
 
@@ -40,6 +43,9 @@ export interface CreateScheduleItemDto {
   category: ScheduleCategory
   location?: string
   phone?: string
+  lat?: number
+  lng?: number
+  place_id?: string
 }
 
 /** 일정 항목 수정 시 DTO */
@@ -52,6 +58,9 @@ export interface UpdateScheduleItemDto {
   location?: string
   phone?: string
   status?: VisitStatus
+  lat?: number
+  lng?: number
+  place_id?: string
 }
 
 /** 날짜별 일정 카드 */

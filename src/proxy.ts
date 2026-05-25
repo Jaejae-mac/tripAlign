@@ -111,6 +111,6 @@ export async function proxy(request: NextRequest) {
 export const config = {
   // 정적 파일, 이미지, favicon 제외한 모든 경로에 프록시 적용
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|sw\\.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
   ],
 }

@@ -1,30 +1,14 @@
 /**
- * 루트 로딩 UI (Next.js Suspense 폴백)
- * 홈화면 아이콘으로 PWA를 실행하거나 클라이언트 내비게이션 중
- * 서버 데이터를 기다리는 동안 즉시 표시되는 스플래시 화면입니다.
+ * 페이지 콘텐츠 로딩 중 표시되는 인라인 로딩 인디케이터 (Next.js Suspense 폴백)
+ *
+ * 루트 layout의 {children} Suspense 경계가 RSC 스트리밍을 기다리는 동안 표시됩니다.
+ * 전체화면이 아닌 콘텐츠 영역 내부에만 표시되므로, SplashScreen과 시각적으로
+ * 구분되며 RSC 스트리밍이 지연돼도 화면 전체를 영구 차단하지 않습니다.
  */
-import { Plane } from 'lucide-react'
-
 export default function Loading() {
   return (
-    <div
-      className="fixed inset-0 flex flex-col items-center justify-center gap-6"
-      style={{ backgroundColor: '#F0FDFA' }}
-    >
-      {/* 앱 로고 영역 */}
-      <div className="flex flex-col items-center gap-3">
-        <div
-          className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-md"
-          style={{ backgroundColor: '#0D9488' }}
-        >
-          <Plane className="w-8 h-8 text-white -rotate-45" />
-        </div>
-        <span className="text-xl font-bold" style={{ color: '#0D9488' }}>
-          TripAlign
-        </span>
-      </div>
-
-      {/* 도트 웨이브 애니메이션 */}
+    // pointer-events: none — RSC 스트리밍 중에도 뒤쪽 요소 클릭이 통과됩니다
+    <div className="flex items-center justify-center min-h-[50vh]" style={{ pointerEvents: 'none' }}>
       <div className="flex items-center gap-2">
         {[0, 1, 2, 3, 4].map((i) => (
           <span
@@ -32,15 +16,13 @@ export default function Loading() {
             className="inline-block w-2 h-2 rounded-full"
             style={{
               backgroundColor: '#0D9488',
-              animation: `pulse 1.2s ease-in-out ${i * 0.12}s infinite`,
-              opacity: 0.3,
+              animation: `loading-dot 1.2s ease-in-out ${i * 0.12}s infinite`,
             }}
           />
         ))}
       </div>
-
       <style>{`
-        @keyframes pulse {
+        @keyframes loading-dot {
           0%, 100% { opacity: 0.15; transform: scale(0.85); }
           50%       { opacity: 0.9;  transform: scale(1.1); }
         }

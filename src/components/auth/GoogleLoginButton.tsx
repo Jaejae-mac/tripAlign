@@ -155,8 +155,12 @@ export function GoogleLoginButton() {
     <Button
       onClick={handleGoogleLogin}
       disabled={isLoading}
-      className="w-full h-11 gap-3 bg-white hover:bg-gray-50 text-gray-700 border border-border font-medium cursor-pointer transition-colors duration-200"
       variant="outline"
+      className="w-full h-11 gap-3 font-medium cursor-pointer transition-colors duration-200"
+      // 다크모드 CSS 변수(dark:bg-input/30)가 bg-white를 override하는 문제 방지
+      // Tailwind v4에서 dark: variant가 일반 유틸리티보다 우선순위가 높으므로
+      // 인라인 스타일로 명시적 색상을 지정합니다.
+      style={{ backgroundColor: 'white', color: '#374151', borderColor: 'rgba(0,0,0,0.12)' }}
     >
       <svg viewBox="0 0 24 24" className="w-5 h-5 shrink-0" aria-hidden="true">
         <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />

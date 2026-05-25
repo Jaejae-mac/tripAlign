@@ -23,7 +23,10 @@ export function SplashScreen() {
       aria-hidden="true"
       style={{
         position: 'fixed',
-        inset: 0,
+        top: 0,
+        right: 0,
+        bottom: 0,
+        left: 0,
         zIndex: 400,
         display: 'flex',
         flexDirection: 'column',
@@ -35,6 +38,10 @@ export function SplashScreen() {
         opacity: visible ? 1 : 0,
         visibility: visible ? 'visible' : 'hidden',
         pointerEvents: 'none',
+        // CSS 애니메이션이 인라인 스타일보다 cascade 우선순위가 높으므로,
+        // React가 실행되지 않아도 6초 후 CSS가 강제로 숨겨줍니다.
+        // React가 정상 실행되면 animation:none으로 바꿔 transition이 처리합니다.
+        animation: visible ? 'splash-autohide 0.5s ease forwards 6s' : 'none',
       }}
     >
       {/* 앱 로고 */}
@@ -79,6 +86,11 @@ export function SplashScreen() {
         @keyframes splash-dot {
           0%, 100% { opacity: 0.15; transform: scale(0.85); }
           50%       { opacity: 0.9;  transform: scale(1.1); }
+        }
+        /* JS(useEffect)가 실행되지 않을 때 CSS 자체적으로 숨기는 폴백 애니메이션.
+           animation-fill-mode: forwards로 애니메이션 종료 후에도 상태를 유지합니다. */
+        @keyframes splash-autohide {
+          to { opacity: 0; visibility: hidden; }
         }
       `}</style>
     </div>
