@@ -237,7 +237,8 @@ export function ScheduleAddDrawer({
 
       onSaved()
       onOpenChange(false)
-    } catch {
+    } catch (err) {
+      console.error('[ScheduleAddDrawer] 일정 저장 실패:', err)
       toast.error(
         isEditing ? '일정 수정에 실패했습니다.' : '일정 추가에 실패했습니다.'
       )

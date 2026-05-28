@@ -55,7 +55,8 @@ export function DayCard({ planId, date, dayNumber }: DayCardProps) {
     try {
       const data = await getScheduleItemsByDate(planId, dateStr)
       setItems(data)
-    } catch {
+    } catch (err) {
+      console.error('[DayCard] 일정 목록 로드 실패:', err)
       toast.error('일정을 불러오지 못했습니다.')
     } finally {
       setIsLoading(false)

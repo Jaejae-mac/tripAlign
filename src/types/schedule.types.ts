@@ -43,6 +43,7 @@ export interface CreateScheduleItemDto {
   category: ScheduleCategory
   location?: string
   phone?: string
+  status?: VisitStatus
   lat?: number
   lng?: number
   place_id?: string
