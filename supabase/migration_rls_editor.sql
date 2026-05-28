@@ -8,6 +8,11 @@
 --   editor 권한으로 초대된 멤버가 일정/지출을 추가·수정할 수 없습니다.
 -- ============================================================
 
+-- 이미 부분 적용된 경우 에러 방지
+DROP POLICY IF EXISTS "day_schedules_editor_write" ON day_schedules;
+DROP POLICY IF EXISTS "schedule_items_editor_write" ON schedule_items;
+DROP POLICY IF EXISTS "expenses_editor_write" ON expenses;
+
 -- ============================================================
 -- 1. day_schedules — editor 멤버 쓰기 허용
 -- ============================================================
@@ -28,11 +33,11 @@ CREATE POLICY "day_schedules_editor_write" ON day_schedules
 CREATE POLICY "schedule_items_editor_write" ON schedule_items
   FOR ALL USING (
     EXISTS (
-      SELECT 1 FROM day_schedules ds
-      JOIN plan_members pm ON pm.plan_id = ds.plan_id
-      WHERE ds.id = schedule_items.day_schedule_id
-        AND pm.user_id = auth.uid()
-        AND pm.role = 'editor'
+      SELECT 1 FROM day_schedules
+      JOIN plan_members ON plan_members.plan_id = day_schedules.plan_id
+      WHERE day_schedules.id = schedule_items.day_schedule_id
+        AND plan_members.user_id = auth.uid()
+        AND plan_members.role = 'editor'
     )
   );
 
