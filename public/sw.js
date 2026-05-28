@@ -3,32 +3,26 @@
  *
  * 전략:
  * - 정적 자산 (_next/static/*): Cache-first — 빌드 해시로 영구 캐시 (배포마다 새 해시)
- * - HTML 네비게이션: Network-first — 항상 최신 HTML을 가져와 청크 버전 불일치 방지
- *   오프라인일 때만 캐시 폴백 사용
+ * - HTML 네비게이션: SW 미개입 — 브라우저가 직접 처리
  * - 이미지/폰트: Cache-first with network fallback
  * - API / Supabase: Network-only
  *
- * ⚠️ HTML을 stale-while-revalidate로 캐시하면 새 배포 후 이전 청크 URL을 참조해
- *    404가 발생하고 앱이 동작하지 않는 문제가 있으므로 network-first를 사용합니다.
+ * ⚠️ navigate 요청을 SW가 가로채면 proxy.ts의 서버 리다이렉트(미인증 → /login 등)가
+ *    opaqueredirect 응답으로 돌아오고, Safari PWA는 이를 엄격히 차단합니다:
+ *    "Response served by service worker has redirections"
+ *    따라서 navigate 요청은 SW를 통과시키지 않고 브라우저가 직접 처리하도록 합니다.
  */
 
-const STATIC_CACHE = 'tripalign-static-v3'
-const SHELL_CACHE  = 'tripalign-shell-v3'
+const STATIC_CACHE = 'tripalign-static-v4'
 
-const SHELL_URLS = ['/', '/login']
-
-// ── Install: 앱 셸 프리캐시 ────────────────────────────────
+// ── Install: skipWaiting으로 즉시 활성화 ──────────────────
 self.addEventListener('install', (e) => {
-  e.waitUntil(
-    caches.open(SHELL_CACHE).then((cache) =>
-      Promise.allSettled(SHELL_URLS.map((url) => cache.add(url)))
-    ).then(() => self.skipWaiting())
-  )
+  e.waitUntil(self.skipWaiting())
 })
 
 // ── Activate: 구버전 캐시 전체 삭제 ──────────────────────
 self.addEventListener('activate', (e) => {
-  const valid = new Set([STATIC_CACHE, SHELL_CACHE])
+  const valid = new Set([STATIC_CACHE])
   e.waitUntil(
     caches.keys().then((keys) =>
       Promise.all(keys.filter((k) => !valid.has(k)).map((k) => caches.delete(k)))
@@ -44,6 +38,12 @@ self.addEventListener('fetch', (e) => {
   if (url.origin !== self.location.origin) return
   if (request.method !== 'GET') return
 
+  // HTML 네비게이션: SW 미개입
+  // proxy.ts가 서버 사이드 리다이렉트를 발생시키는데, SW가 navigate를 가로채면
+  // fetch(request)는 redirect:'manual' 모드로 동작해 opaqueredirect를 반환합니다.
+  // Safari는 respondWith(opaqueredirect)를 에러로 처리하므로 SW가 개입하지 않습니다.
+  if (request.mode === 'navigate') return
+
   // 정적 자산: Cache-first (빌드 해시가 다르면 자동으로 새 파일 요청됨)
   if (url.pathname.startsWith('/_next/static/')) {
     e.respondWith(
@@ -57,32 +57,6 @@ self.addEventListener('fetch', (e) => {
             return res
           })
       )
-    )
-    return
-  }
-
-  // HTML 네비게이션: Network-first (5초 타임아웃)
-  // Safari에서 미들웨어(Supabase getUser + DB 쿼리)가 느릴 때 무한 대기를 방지합니다.
-  if (request.mode === 'navigate') {
-    const TIMEOUT_MS = 5000
-    e.respondWith(
-      Promise.race([
-        fetch(request),
-        new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('sw-timeout')), TIMEOUT_MS)
-        ),
-      ])
-        .then((res) => {
-          if (res && res.ok) {
-            caches.open(SHELL_CACHE).then((c) => c.put(request, res.clone()))
-          }
-          return res
-        })
-        .catch(async () => {
-          // 타임아웃 또는 네트워크 오류 → 캐시 폴백, 없으면 루트 캐시 반환
-          const cached = await caches.match(request)
-          return cached || caches.match('/')
-        })
     )
     return
   }
