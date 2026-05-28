@@ -6,7 +6,7 @@
  * 방문 상태(방문예정/방문완료) 토글 및 수정/삭제 메뉴를 제공합니다.
  */
 import { useState } from 'react'
-import { Clock, MapPin, Phone, MoreVertical, Pencil, Trash2 } from 'lucide-react'
+import { Clock, MapPin, Phone, MoreVertical, Pencil, Trash2, ExternalLink } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -68,8 +68,8 @@ export function ScheduleItem({ item, onView, onEdit, onDeleted }: ScheduleItemPr
       className={`
         flex gap-3 rounded-xl p-4 border transition-all duration-200
         ${isCompleted
-          ? 'bg-emerald-50/60 border-emerald-100'
-          : 'bg-white border-border hover:shadow-md'
+          ? 'bg-emerald-500/10 border-emerald-500/20'
+          : 'bg-card border-border hover:shadow-md'
         }
       `}
       style={{ boxShadow: isCompleted ? undefined : 'var(--shadow-sm)' }}
@@ -112,12 +112,26 @@ export function ScheduleItem({ item, onView, onEdit, onDeleted }: ScheduleItemPr
               </span>
             </div>
 
-            {/* 장소 */}
+            {/* 장소 — 클릭 시 Google Maps에서 장소 열기 */}
             {item.location && (
-              <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
+              <a
+                href={
+                  item.place_id
+                    // Maps URLs API: query_place_id로 정확한 장소를 핀포인트합니다
+                    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.location)}&query_place_id=${item.place_id}`
+                    : item.lat && item.lng
+                    ? `https://www.google.com/maps?q=${item.lat},${item.lng}`
+                    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.location)}`
+                }
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="flex items-center gap-1 mt-1 text-xs text-muted-foreground hover:text-primary transition-colors cursor-pointer group"
+              >
                 <MapPin className="w-3 h-3 shrink-0" />
-                <span className="truncate">{item.location}</span>
-              </div>
+                <span className="truncate group-hover:underline">{item.location}</span>
+                <ExternalLink className="w-2.5 h-2.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </a>
             )}
 
             {/* 전화번호 */}
@@ -145,14 +159,14 @@ export function ScheduleItem({ item, onView, onEdit, onDeleted }: ScheduleItemPr
                 flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium
                 cursor-pointer transition-all duration-200 border
                 ${isCompleted
-                  ? 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
-                  : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'
+                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20'
+                  : 'bg-muted border-border text-muted-foreground hover:bg-muted/60'
                 }
               `}
               aria-label="방문 상태 변경"
             >
               <span
-                className={`w-1.5 h-1.5 rounded-full ${isCompleted ? 'bg-emerald-500' : 'bg-gray-400'}`}
+                className={`w-1.5 h-1.5 rounded-full ${isCompleted ? 'bg-emerald-500' : 'bg-muted-foreground/50'}`}
               />
               {isCompleted ? '방문완료' : '방문예정'}
             </button>

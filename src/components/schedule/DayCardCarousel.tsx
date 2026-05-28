@@ -124,7 +124,7 @@ export function DayCardCarousel({ plan }: DayCardCarouselProps) {
   return (
     <div className="flex flex-col">
       {/* 상단 네비게이션 바 — 뷰 모드에 따라 다른 내용 표시 */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-white sticky top-14 z-30">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-background sticky top-14 z-30">
         <AnimatePresence mode="wait">
           {viewMode === 'overview' ? (
             // 오버뷰 모드: 전체 일정 제목 + 일별 보기 버튼
@@ -250,7 +250,7 @@ export function DayCardCarousel({ plan }: DayCardCarouselProps) {
             {/* 날짜 인디케이터
                 7일 이하: 모든 도트 표시
                 8일 이상: 현재 위치 중심 슬라이딩 윈도우로 5개만 표시 */}
-            <div className="flex justify-center items-center gap-1.5 py-2 bg-white">
+            <div className="flex justify-center items-center gap-1.5 py-2 bg-background">
               {dates.length <= 7 ? (
                 dates.map((_, i) => (
                   <button

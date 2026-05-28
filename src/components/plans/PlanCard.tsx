@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
 import { usePlanStore } from '@/store/planStore'
+import { useLoadingStore } from '@/store/loadingStore'
 import { toast } from 'sonner'
 import { useState } from 'react'
 import { PlanInviteDialog } from './PlanInviteDialog'
@@ -42,6 +43,7 @@ interface PlanCardProps {
 export function PlanCard({ plan, isOwner = false }: PlanCardProps) {
   const router = useRouter()
   const { removePlan } = usePlanStore()
+  const { show: showLoading } = useLoadingStore()
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false)
 
   const [imageError, setImageError] = useState(false)
@@ -58,6 +60,7 @@ export function PlanCard({ plan, isOwner = false }: PlanCardProps) {
 
   /** 플랜 상세 페이지로 이동 */
   const handleCardClick = () => {
+    showLoading('플랜을 불러오는 중입니다')
     router.push(`/plans/${plan.id}`)
   }
 

@@ -78,16 +78,9 @@ export function SharedPlanCard({ plan, role }: SharedPlanCardProps) {
       whileTap={{ scale: 0.97 }}
     >
       <Card
-        className="overflow-hidden cursor-pointer border-border hover:shadow-md transition-shadow duration-200"
+        className="group overflow-hidden cursor-pointer border-border hover:shadow-md transition-shadow duration-200 p-0"
         onClick={() => router.push(`/plans/${plan.id}`)}
       >
-        {/* Shared 띠배너 — 카드 상단, 커버 이미지 외부 */}
-        <div className="flex items-center justify-center h-6 bg-lime-400/80">
-          <span className="text-[10px] font-bold text-white tracking-[0.18em] uppercase">
-            Shared
-          </span>
-        </div>
-
         {/* 커버 영역 — w-full 명시로 Next.js fill 이미지 컨테이너 크기 보장 */}
         <div className="relative w-full h-36 bg-muted overflow-hidden">
           {plan.cover_image && !imageError ? (
@@ -107,6 +100,13 @@ export function SharedPlanCard({ plan, role }: SharedPlanCardProps) {
           {/* 어두운 하단 그라디언트 오버레이 */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
 
+          {/* SHARED 오버레이 — 썸네일 상단에 전체 너비로 표시 */}
+          <div className="absolute top-0 inset-x-0 flex items-center justify-center h-7 bg-lime-500/75 backdrop-blur-[2px] z-10">
+            <span className="text-[10px] font-bold text-white tracking-[0.2em] uppercase drop-shadow-sm">
+              Shared
+            </span>
+          </div>
+
           {/* 목적지 — 좌측 하단 */}
           <div className="absolute bottom-3 left-3 flex items-center gap-1 text-white">
             <MapPin className="w-3.5 h-3.5" />
@@ -118,8 +118,8 @@ export function SharedPlanCard({ plan, role }: SharedPlanCardProps) {
             <span className="text-xs font-semibold text-white/90">{totalDays}일</span>
           </div>
 
-          {/* 더보기 메뉴 — 우측 상단 */}
-          <div className="absolute top-2 right-2" onClick={(e) => e.stopPropagation()}>
+          {/* 더보기 메뉴 — SHARED 배너(h-7=28px) 바로 아래 */}
+          <div className="absolute top-8 right-2" onClick={(e) => e.stopPropagation()}>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -145,13 +145,13 @@ export function SharedPlanCard({ plan, role }: SharedPlanCardProps) {
           </div>
         </div>
 
-        {/* 정보 영역 */}
-        <div className="px-4 pt-3 pb-4 space-y-1.5">
-          <div className="flex items-center justify-between gap-2">
-            <h3 className="font-semibold text-foreground text-base leading-tight line-clamp-1">
+        {/* 정보 영역 — PlanCard와 동일한 패딩/높이 */}
+        <div className="p-4">
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <h3 className="font-semibold text-foreground text-base truncate group-hover:text-primary transition-colors duration-200">
               {plan.title}
             </h3>
-            {/* 권한 배지 — 테마 색상 사용 */}
+            {/* 권한 배지 */}
             <span
               className={`shrink-0 text-[11px] font-medium px-2 py-0.5 rounded-full ${
                 role === 'editor'
@@ -165,8 +165,8 @@ export function SharedPlanCard({ plan, role }: SharedPlanCardProps) {
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Calendar className="w-3.5 h-3.5 shrink-0" />
             <span>
-              {format(startDate, 'yyyy.MM.dd', { locale: ko })} ~{' '}
-              {format(endDate, 'yyyy.MM.dd', { locale: ko })}
+              {format(startDate, 'M월 d일', { locale: ko })} ~{' '}
+              {format(endDate, 'M월 d일', { locale: ko })}
             </span>
           </div>
         </div>

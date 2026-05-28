@@ -15,10 +15,11 @@ export default async function PlanDetailPage({ params }: PlanDetailPageProps) {
   const { planId } = await params
   const supabase = await createClient()
 
-  // 현재 로그인한 사용자 확인
+  // proxy.ts가 이미 getUser()로 JWT를 검증했으므로 getSession()으로 쿠키 읽기
   const {
-    data: { user },
-  } = await supabase.auth.getUser()
+    data: { session },
+  } = await supabase.auth.getSession()
+  const user = session?.user
 
   if (!user) redirect('/login')
 

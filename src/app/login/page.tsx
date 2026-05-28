@@ -3,6 +3,7 @@
  * Google OAuth로 로그인합니다. 인증 후 메인 페이지(/)로 이동합니다.
  */
 import { GoogleLoginButton } from '@/components/auth/GoogleLoginButton'
+import { SiteFooter } from '@/components/layout/SiteFooter'
 import { MapPin, CalendarDays, Wallet, Plane } from 'lucide-react'
 
 // 서비스 특징 목록 — 이모지 대신 Lucide SVG 아이콘 사용
@@ -62,6 +63,9 @@ export default function LoginPage({
             </div>
           ))}
         </div>
+
+        {/* 약관 링크·연락처·저작권 푸터 */}
+        <SiteFooter />
       </div>
     </main>
   )

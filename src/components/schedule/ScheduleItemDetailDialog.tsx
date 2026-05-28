@@ -3,10 +3,11 @@
 /**
  * 일정 항목 상세 팝업
  * 일정 셀을 클릭하면 화면 중앙에 모든 필드를 표시합니다.
- * 방문 상태 토글, 수정, 삭제 액션을 제공합니다.
+ * place_id가 있는 경우 Google Places API로 평점·영업시간을 불러와 표시합니다.
+ * 방문 상태 토글, 수정, 삭제, 구글 지도 길안내 기능을 제공합니다.
  */
 import { useEffect, useState } from 'react'
-import { Clock, MapPin, Phone, Loader2 } from 'lucide-react'
+import { Clock, MapPin, Phone, Loader2, Star, Navigation, Footprints, ExternalLink } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -18,6 +19,14 @@ import { deleteScheduleItem, updateScheduleItem } from '@/services/schedule.serv
 import { toast } from 'sonner'
 import { CATEGORY_CONFIG } from '@/lib/constants/schedule'
 import type { ScheduleItem as ScheduleItemType, VisitStatus } from '@/types/schedule.types'
+
+// Google Places Details에서 필요한 필드만 정의
+interface PlaceDetails {
+  rating: number | null
+  userRatingCount: number | null
+  isOpenNow: boolean | null
+  openingHoursText: string | null
+}
 
 interface ScheduleItemDetailDialogProps {
   open: boolean
@@ -36,14 +45,86 @@ export function ScheduleItemDetailDialog({
 }: ScheduleItemDetailDialogProps) {
   const [status, setStatus] = useState<VisitStatus>(item.status ?? 'pending')
   const [isDeleting, setIsDeleting] = useState(false)
+  const [placeDetails, setPlaceDetails] = useState<PlaceDetails | null>(null)
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false)
 
   const category = CATEGORY_CONFIG[item.category]
   const isCompleted = status === 'completed'
 
-  // item이 바뀔 때(카드에서 상태 토글 후 팝업 재진입) 상태 동기화
+  // item이 바뀔 때 상태 동기화
   useEffect(() => {
     setStatus(item.status ?? 'pending')
   }, [item.status])
+
+  // 팝업이 열릴 때 place_id가 있으면 Google Places Details 조회
+  useEffect(() => {
+    if (!open || !item.place_id) {
+      setPlaceDetails(null)
+      return
+    }
+
+    // Google Maps JS API가 로드되어 있지 않으면 스킵
+    if (typeof google === 'undefined' || !google.maps?.places) return
+
+    setIsLoadingDetails(true)
+
+    // PlacesService는 DOM 요소가 필요하므로 임시 div 사용
+    const tempDiv = document.createElement('div')
+    const service = new google.maps.places.PlacesService(tempDiv)
+
+    service.getDetails(
+      {
+        placeId: item.place_id,
+        fields: ['rating', 'user_ratings_total', 'opening_hours'],
+        language: 'ko',
+      },
+      (result, status) => {
+        setIsLoadingDetails(false)
+        if (status !== google.maps.places.PlacesServiceStatus.OK || !result) return
+
+        setPlaceDetails({
+          rating: result.rating ?? null,
+          userRatingCount: result.user_ratings_total ?? null,
+          isOpenNow: result.opening_hours?.isOpen?.() ?? null,
+          openingHoursText:
+            result.opening_hours?.weekday_text
+              ? getTodayHours(result.opening_hours.weekday_text)
+              : null,
+        })
+      }
+    )
+  }, [open, item.place_id])
+
+  /** 오늘 요일의 영업시간 텍스트 추출 (예: "월요일: 09:00 ~ 22:00") */
+  function getTodayHours(weekdayText: string[]): string | null {
+    const dayIndex = new Date().getDay() // 0=일, 1=월, ..., 6=토
+    // Google API 반환 순서: 월(0)~일(6)
+    const googleIndex = dayIndex === 0 ? 6 : dayIndex - 1
+    return weekdayText[googleIndex] ?? null
+  }
+
+  /** 구글 지도 길안내 URL 생성 */
+  function buildMapsUrl(travelmode: 'transit' | 'walking') {
+    const base = 'https://www.google.com/maps/dir/?api=1'
+    if (item.lat && item.lng) {
+      return `${base}&destination=${item.lat},${item.lng}&destination_place_id=${item.place_id ?? ''}&travelmode=${travelmode}`
+    }
+    // 좌표가 없으면 장소명으로 폴백
+    return `${base}&destination=${encodeURIComponent(item.location ?? '')}&travelmode=${travelmode}`
+  }
+
+  /** 구글 지도에서 장소 열기 (길안내 아님, 장소 정보 뷰) */
+  function buildPlaceUrl() {
+    if (item.place_id) {
+      // Maps URLs API: query_place_id로 정확한 장소를 핀포인트합니다
+      // ?q=place_id:xxx 형식은 텍스트 검색으로 처리돼 "찾을 수 없음" 오류 발생
+      return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.location ?? '')}&query_place_id=${item.place_id}`
+    }
+    if (item.lat && item.lng) {
+      return `https://www.google.com/maps?q=${item.lat},${item.lng}`
+    }
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.location ?? '')}`
+  }
 
   /** 방문 상태 낙관적 토글 */
   const handleToggleStatus = async () => {
@@ -84,12 +165,10 @@ export function ScheduleItemDetailDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={[
-        // 모바일: 바텀시트 override → 화면 중앙 고정
         'inset-x-auto bottom-auto',
         'left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2',
         'w-[calc(100%-2rem)] rounded-2xl border px-5 py-5',
         'max-h-[85vh] overflow-y-auto',
-        // 데스크탑: sm+ 기본값 유지 (max-w 덮어쓰기)
         'sm:max-w-md',
       ].join(' ')}>
         {/* 헤더: 아이콘 + 제목 + 시간 + 카테고리 배지 */}
@@ -138,23 +217,112 @@ export function ScheduleItemDetailDialog({
                 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium
                 cursor-pointer transition-all duration-200 border
                 ${isCompleted
-                  ? 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
-                  : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'
+                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20'
+                  : 'bg-muted border-border text-muted-foreground hover:bg-muted/60'
                 }
               `}
             >
-              <span className={`w-1.5 h-1.5 rounded-full ${isCompleted ? 'bg-emerald-500' : 'bg-gray-400'}`} />
+              <span className={`w-1.5 h-1.5 rounded-full ${isCompleted ? 'bg-emerald-500' : 'bg-muted-foreground/50'}`} />
               {isCompleted ? '방문완료' : '방문예정'}
             </button>
           </div>
 
           {/* 장소 */}
           {item.location && (
-            <div className="space-y-1">
+            <div className="space-y-2">
               <p className="text-xs font-medium text-muted-foreground">장소</p>
-              <div className="flex items-start gap-1.5 text-sm text-foreground">
+
+              {/* 장소명 + 구글 지도 열기 링크 */}
+              <div className="flex items-start gap-1.5">
                 <MapPin className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
-                <span>{item.location}</span>
+                <a
+                  href={buildPlaceUrl()}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-foreground hover:text-primary hover:underline flex items-center gap-1 transition-colors cursor-pointer"
+                >
+                  {item.location}
+                  <ExternalLink className="w-3 h-3 shrink-0 text-muted-foreground" />
+                </a>
+              </div>
+
+              {/* 평점·영업시간 — place_id가 있을 때만 표시 */}
+              {item.place_id && (
+                <div className="ml-5 space-y-1.5">
+                  {isLoadingDetails ? (
+                    // 로딩 스켈레톤
+                    <div className="space-y-1.5">
+                      <div className="h-4 w-24 bg-muted rounded animate-pulse" />
+                      <div className="h-4 w-36 bg-muted rounded animate-pulse" />
+                    </div>
+                  ) : placeDetails ? (
+                    <>
+                      {/* 평점 */}
+                      {placeDetails.rating !== null && (
+                        <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-0.5">
+                            <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                            <span className="text-sm font-semibold text-foreground">
+                              {placeDetails.rating.toFixed(1)}
+                            </span>
+                          </div>
+                          {placeDetails.userRatingCount !== null && (
+                            <span className="text-xs text-muted-foreground">
+                              ({placeDetails.userRatingCount.toLocaleString()}개 리뷰)
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      {/* 오늘 영업시간 + 영업 여부 */}
+                      {placeDetails.openingHoursText && (
+                        <div className="flex items-center gap-1.5 text-xs">
+                          <span
+                            className={`font-medium ${
+                              placeDetails.isOpenNow === null
+                                ? 'text-muted-foreground'
+                                : placeDetails.isOpenNow
+                                ? 'text-emerald-600'
+                                : 'text-red-500'
+                            }`}
+                          >
+                            {placeDetails.isOpenNow === null
+                              ? ''
+                              : placeDetails.isOpenNow
+                              ? '영업 중'
+                              : '영업 종료'}
+                          </span>
+                          <span className="text-muted-foreground">
+                            {/* "월요일: 09:00 ~ 22:00" 형태에서 시간 부분만 표시 */}
+                            {placeDetails.openingHoursText.split(': ')[1] ?? placeDetails.openingHoursText}
+                          </span>
+                        </div>
+                      )}
+                    </>
+                  ) : null}
+                </div>
+              )}
+
+              {/* 길안내 버튼 — 장소가 있을 때 항상 표시 */}
+              <div className="flex gap-2 ml-5 mt-2">
+                <a
+                  href={buildMapsUrl('transit')}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors cursor-pointer"
+                >
+                  <Navigation className="w-3.5 h-3.5" />
+                  대중교통
+                </a>
+                <a
+                  href={buildMapsUrl('walking')}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-muted hover:bg-muted/80 text-foreground transition-colors cursor-pointer"
+                >
+                  <Footprints className="w-3.5 h-3.5" />
+                  도보
+                </a>
               </div>
             </div>
           )}
@@ -175,7 +343,7 @@ export function ScheduleItemDetailDialog({
             </div>
           )}
 
-          {/* 메모 (전체 표시, line-clamp 없음) */}
+          {/* 메모 */}
           {item.description && (
             <div className="space-y-1">
               <p className="text-xs font-medium text-muted-foreground">메모</p>

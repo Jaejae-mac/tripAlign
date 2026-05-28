@@ -80,11 +80,12 @@ export async function createScheduleItem(
     .single()
 
   if (dayError) throw new Error(dayError.message)
+  if (!daySchedule) throw new Error('day_schedule 조회/생성 실패')
 
-  // 2. 일정 항목 생성
+  // 2. 일정 항목 생성 (status 기본값을 명시해 NOT NULL 컬럼 제약 위반 방지)
   const { data, error } = await supabase
     .from('schedule_items')
-    .insert({ ...dto, day_schedule_id: daySchedule.id })
+    .insert({ ...dto, day_schedule_id: daySchedule.id, status: dto.status ?? 'pending' })
     .select()
     .single()
 
