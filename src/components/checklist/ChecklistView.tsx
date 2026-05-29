@@ -55,7 +55,7 @@ interface SortableGroupCardProps {
   onAddItem: (groupId: string, title: string) => Promise<void>
   onDeleteItem: (itemId: string) => void
   onDeleteGroup: (groupId: string) => void
-  onReorderItems: (groupId: string, from: number, to: number) => void
+  onSetItemOrder: (groupId: string, orderedIds: string[]) => void
   onUpdateItemTitle: (itemId: string, title: string) => Promise<void>
 }
 
@@ -66,7 +66,7 @@ function SortableGroupCard({
   onAddItem,
   onDeleteItem,
   onDeleteGroup,
-  onReorderItems,
+  onSetItemOrder,
   onUpdateItemTitle,
 }: SortableGroupCardProps) {
   const {
@@ -97,7 +97,7 @@ function SortableGroupCard({
           onAddItem={onAddItem}
           onDeleteItem={onDeleteItem}
           onDeleteGroup={onDeleteGroup}
-          onReorderItems={onReorderItems}
+          onSetItemOrder={onSetItemOrder}
           onUpdateItemTitle={onUpdateItemTitle}
         />
       </motion.div>
@@ -279,12 +279,16 @@ export function ChecklistView({ planId }: ChecklistViewProps) {
     }
   }
 
-  // ── 항목 순서 변경 (그룹 내부에서 발생, 여기서 state 업데이트) ──
-  const handleReorderItems = (groupId: string, from: number, to: number) => {
+  // ── 항목 순서 변경 (ChecklistGroup에서 새 전체 순서 ID 배열을 받아 state 업데이트) ──
+  const handleSetItemOrder = (groupId: string, orderedIds: string[]) => {
     setGroups((prev) =>
       prev.map((g) => {
         if (g.id !== groupId) return g
-        return { ...g, items: arrayMove(g.items, from, to) }
+        const itemMap = Object.fromEntries(g.items.map((i) => [i.id, i]))
+        return {
+          ...g,
+          items: orderedIds.map((id, idx) => ({ ...itemMap[id], sort_order: idx })),
+        }
       })
     )
   }
@@ -354,7 +358,7 @@ export function ChecklistView({ planId }: ChecklistViewProps) {
                 onAddItem={handleAddItem}
                 onDeleteItem={handleDeleteItem}
                 onDeleteGroup={handleDeleteGroup}
-                onReorderItems={handleReorderItems}
+                onSetItemOrder={handleSetItemOrder}
                 onUpdateItemTitle={handleUpdateItemTitle}
               />
             ))}

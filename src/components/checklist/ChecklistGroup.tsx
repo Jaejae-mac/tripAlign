@@ -2,9 +2,9 @@
 
 /**
  * 준비물 그룹 카드 컴포넌트
- * 그룹 헤더의 드래그 핸들로 그룹 순서를 변경하고,
- * 항목 행의 드래그 핸들로 항목 순서를 변경할 수 있습니다.
- * 편집 모드에서는 항목 텍스트를 직접 수정하거나 삭제할 수 있습니다.
+ * 미완료 항목은 상단, 완료 항목은 하단에 고정 배치됩니다.
+ * 각 섹션 내에서 드래그 앤 드롭으로 순서를 변경할 수 있으며,
+ * 완료 항목이 미완료 항목 위로 올라오는 것은 구조적으로 차단됩니다.
  */
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -41,7 +41,8 @@ interface ChecklistGroupProps {
   onAddItem: (groupId: string, title: string) => Promise<void>
   onDeleteItem: (itemId: string) => void
   onDeleteGroup: (groupId: string) => void
-  onReorderItems: (groupId: string, from: number, to: number) => void
+  // from/to 인덱스 대신 새로운 전체 순서 ID 배열을 전달
+  onSetItemOrder: (groupId: string, orderedIds: string[]) => void
   onUpdateItemTitle: (itemId: string, title: string) => Promise<void>
 }
 
@@ -148,7 +149,7 @@ export function ChecklistGroup({
   onAddItem,
   onDeleteItem,
   onDeleteGroup,
-  onReorderItems,
+  onSetItemOrder,
   onUpdateItemTitle,
 }: ChecklistGroupProps) {
   const [isAddingItem, setIsAddingItem] = useState(false)
@@ -168,19 +169,21 @@ export function ChecklistGroup({
     if (isAddingItem) inputRef.current?.focus()
   }, [isAddingItem])
 
-  const checkedCount = group.items.filter((i) => i.is_checked).length
+  // 미완료/완료 항목 분리 — 각 섹션은 sort_order 순 유지
+  const uncheckedItems = group.items.filter((i) => !i.is_checked)
+  const checkedItems = group.items.filter((i) => i.is_checked)
+
+  const checkedCount = checkedItems.length
   const totalCount = group.items.length
 
   // ── 편집 모드 토글 ────────────────────────────────────────
   const handleToggleEdit = async () => {
     if (!isEditing) {
-      // 편집 모드 진입 — 현재 타이틀로 초기화
       const initial: Record<string, string> = {}
       group.items.forEach((item) => { initial[item.id] = item.title })
       setEditedTitles(initial)
       setIsEditing(true)
     } else {
-      // 편집 모드 종료 — 변경된 항목만 저장
       const changed = group.items.filter(
         (item) =>
           editedTitles[item.id] !== undefined &&
@@ -204,23 +207,49 @@ export function ChecklistGroup({
     }
   }
 
-  // ── 항목 DnD ─────────────────────────────────────────────
-  const handleItemDragEnd = async ({ active, over }: DragEndEvent) => {
+  // ── 미완료 섹션 DnD ──────────────────────────────────────
+  const handleUncheckedDragEnd = async ({ active, over }: DragEndEvent) => {
     if (!over || active.id === over.id) return
 
-    const oldIndex = group.items.findIndex((i) => i.id === active.id)
-    const newIndex = group.items.findIndex((i) => i.id === over.id)
+    const oldIndex = uncheckedItems.findIndex((i) => i.id === active.id)
+    const newIndex = uncheckedItems.findIndex((i) => i.id === over.id)
     if (oldIndex === -1 || newIndex === -1) return
 
-    onReorderItems(group.id, oldIndex, newIndex)
+    // 새 순서: 재배열된 미완료 + 기존 완료 순서 유지
+    const reorderedUnchecked = arrayMove(uncheckedItems, oldIndex, newIndex)
+    const newOrder = [...reorderedUnchecked, ...checkedItems]
+    onSetItemOrder(group.id, newOrder.map((i) => i.id))
 
-    const reordered = arrayMove(group.items, oldIndex, newIndex)
     try {
       await reorderPackingItems(
-        reordered.map((item, i) => ({ id: item.id, sort_order: i }))
+        newOrder.map((item, idx) => ({ id: item.id, sort_order: idx }))
       )
     } catch {
-      onReorderItems(group.id, newIndex, oldIndex)
+      // 실패 시 되돌리기
+      onSetItemOrder(group.id, group.items.map((i) => i.id))
+      toast.error('항목 순서 저장에 실패했습니다.')
+    }
+  }
+
+  // ── 완료 섹션 DnD ────────────────────────────────────────
+  const handleCheckedDragEnd = async ({ active, over }: DragEndEvent) => {
+    if (!over || active.id === over.id) return
+
+    const oldIndex = checkedItems.findIndex((i) => i.id === active.id)
+    const newIndex = checkedItems.findIndex((i) => i.id === over.id)
+    if (oldIndex === -1 || newIndex === -1) return
+
+    // 새 순서: 기존 미완료 순서 유지 + 재배열된 완료
+    const reorderedChecked = arrayMove(checkedItems, oldIndex, newIndex)
+    const newOrder = [...uncheckedItems, ...reorderedChecked]
+    onSetItemOrder(group.id, newOrder.map((i) => i.id))
+
+    try {
+      await reorderPackingItems(
+        newOrder.map((item, idx) => ({ id: item.id, sort_order: idx }))
+      )
+    } catch {
+      onSetItemOrder(group.id, group.items.map((i) => i.id))
       toast.error('항목 순서 저장에 실패했습니다.')
     }
   }
@@ -309,19 +338,56 @@ export function ChecklistGroup({
         )}
       </div>
 
-      {/* 항목 목록 — 항목 DnD 컨텍스트 */}
-      {group.items.length > 0 && (
+      {/* ── 미완료 항목 섹션 ── */}
+      {uncheckedItems.length > 0 && (
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
-          onDragEnd={handleItemDragEnd}
+          onDragEnd={handleUncheckedDragEnd}
         >
           <SortableContext
-            items={group.items.map((i) => i.id)}
+            items={uncheckedItems.map((i) => i.id)}
             strategy={verticalListSortingStrategy}
           >
             <ul>
-              {group.items.map((item) => (
+              {uncheckedItems.map((item) => (
+                <SortableItemRow
+                  key={item.id}
+                  item={item}
+                  isEditing={isEditing}
+                  editValue={editedTitles[item.id] ?? item.title}
+                  onEditChange={(id, val) =>
+                    setEditedTitles((prev) => ({ ...prev, [id]: val }))
+                  }
+                  onToggle={onToggleItem}
+                  onDelete={onDeleteItem}
+                />
+              ))}
+            </ul>
+          </SortableContext>
+        </DndContext>
+      )}
+
+      {/* ── 완료 항목 구분선 ── */}
+      {checkedItems.length > 0 && (
+        <div className="px-3 py-1.5 border-t border-dashed border-border/60 bg-muted/20">
+          <span className="text-[11px] text-muted-foreground/60 font-medium">완료된 항목</span>
+        </div>
+      )}
+
+      {/* ── 완료 항목 섹션 ── */}
+      {checkedItems.length > 0 && (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleCheckedDragEnd}
+        >
+          <SortableContext
+            items={checkedItems.map((i) => i.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <ul>
+              {checkedItems.map((item) => (
                 <SortableItemRow
                   key={item.id}
                   item={item}

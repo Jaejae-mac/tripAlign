@@ -8,9 +8,9 @@ import { MapPin, CalendarDays, Wallet, Plane } from 'lucide-react'
 
 // 서비스 특징 목록 — 이모지 대신 Lucide SVG 아이콘 사용
 const FEATURES = [
-  { Icon: CalendarDays, label: '일별 일정 관리', color: 'text-sky-500',    bg: 'bg-sky-50'    },
-  { Icon: Wallet,       label: '지출 가계부',    color: 'text-orange-500', bg: 'bg-orange-50' },
-  { Icon: Plane,        label: '여행 플랜 저장', color: 'text-violet-500', bg: 'bg-violet-50' },
+  { Icon: CalendarDays, label: '일별 일정 관리', color: 'text-sky-500',    bg: 'bg-sky-50 dark:bg-sky-950'       },
+  { Icon: Wallet,       label: '지출 가계부',    color: 'text-orange-500', bg: 'bg-orange-50 dark:bg-orange-950' },
+  { Icon: Plane,        label: '여행 플랜 저장', color: 'text-violet-500', bg: 'bg-violet-50 dark:bg-violet-950' },
 ] as const
 
 export default function LoginPage({
@@ -19,7 +19,7 @@ export default function LoginPage({
   searchParams: Promise<{ error?: string }>
 }) {
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-sky-50 via-white to-blue-50 px-4">
+    <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-sky-50 via-white to-blue-50 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 px-4">
       <div className="w-full max-w-sm">
         {/* 로고 및 서비스 소개 */}
         <div className="text-center mb-10">
@@ -36,7 +36,7 @@ export default function LoginPage({
 
         {/* 로그인 카드 */}
         <div
-          className="bg-white rounded-2xl p-8 border border-border"
+          className="bg-card rounded-2xl p-8 border border-border"
           style={{ boxShadow: 'var(--shadow-lg)' }}
         >
           <h2 className="text-lg font-semibold text-foreground mb-1">
