@@ -47,6 +47,9 @@ export function createCategoryMarkerIcon(
   category: ScheduleCategory,
   index: number
 ): google.maps.Icon {
+  if (typeof google === 'undefined') {
+    throw new Error('createCategoryMarkerIcon: Google Maps API is not loaded')
+  }
   const color = CATEGORY_CONFIG[category].color
   const iconPaths = ICON_PATHS[category]
   const number = index + 1
