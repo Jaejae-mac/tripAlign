@@ -10,6 +10,7 @@ import { GoogleMap, Marker, InfoWindow } from '@react-google-maps/api'
 import { MapPin, Loader2 } from 'lucide-react'
 import { useMapsLoaded } from '@/components/providers/GoogleMapsProvider'
 import type { ScheduleItem } from '@/types/schedule.types'
+import { createCategoryMarkerIcon } from '@/lib/utils/mapMarkers'
 
 interface DayMapViewProps {
   items: ScheduleItem[]
@@ -107,12 +108,7 @@ export function DayMapView({ items }: DayMapViewProps) {
         <Marker
           key={item.id}
           position={{ lat: item.lat, lng: item.lng }}
-          label={{
-            text: String(index + 1),
-            color: 'white',
-            fontWeight: 'bold',
-            fontSize: '12px',
-          }}
+          icon={createCategoryMarkerIcon(item.category, index)}
           // 방문완료 항목은 흐리게 표시
           opacity={item.status === 'completed' ? 0.5 : 1}
           onClick={() => handleMarkerClick(index, item.lat, item.lng)}
