@@ -5,15 +5,34 @@
  * lat/lng가 있는 일정 항목들을 번호 마커로 표시하고
  * 마커 클릭 시 일정 제목과 시간을 InfoWindow로 팝업합니다.
  */
-import { useState, useCallback, useRef, useMemo } from 'react'
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { GoogleMap, Marker, InfoWindow } from '@react-google-maps/api'
 import { MapPin, Loader2 } from 'lucide-react'
 import { useMapsLoaded } from '@/components/providers/GoogleMapsProvider'
 import type { ScheduleItem } from '@/types/schedule.types'
 import { createCategoryMarkerIcon } from '@/lib/utils/mapMarkers'
 
+/** 오늘 요일의 영업시간 텍스트 추출 */
+function getTodayHours(weekdayText: string[]): string | null {
+  const dayIndex = new Date().getDay()
+  const googleIndex = dayIndex === 0 ? 6 : dayIndex - 1
+  return weekdayText[googleIndex] ?? null
+}
+
 interface DayMapViewProps {
   items: ScheduleItem[]
+  /** 지도 검색에서 선택된 장소 — 파란색 마커로 별도 표시 */
+  selectedPlace?: { lat: number | null; lng: number | null; location: string; place_id: string | null } | null
+  /** 지도 위 POI 클릭 시 장소 상세정보를 부모에게 전달 */
+  onPlaceClick?: (place: {
+    location: string; lat: number; lng: number; place_id: string
+    rating?: number | null; userRatingCount?: number | null
+    address?: string | null; phone?: string | null
+    isOpenNow?: boolean | null; todayHours?: string | null
+    priceLevel?: number | null
+  }) => void
+  /** 지도 열기 시 현재 사용자 위치 — 기존 일정 없을 때 지도를 이 위치로 이동 */
+  userLocation?: { lat: number; lng: number } | null
 }
 
 const MAP_CONTAINER_STYLE = { width: '100%', height: '100%' }
@@ -25,10 +44,10 @@ const MAP_OPTIONS: google.maps.MapOptions = {
   mapTypeControl: false,
   streetViewControl: false,
   fullscreenControl: false,
-  clickableIcons: false,
+  clickableIcons: true,
 }
 
-export function DayMapView({ items }: DayMapViewProps) {
+export function DayMapView({ items, selectedPlace, onPlaceClick, userLocation }: DayMapViewProps) {
   const mapsLoaded = useMapsLoaded()
 
   // Maps JS API 로드 전 로딩 표시
@@ -55,8 +74,8 @@ export function DayMapView({ items }: DayMapViewProps) {
   // 지도 초기 중심 — 좌표 원시값을 deps로 써서 객체 참조를 안정적으로 유지
   // center prop이 리렌더마다 새 객체로 생성되면 @react-google-maps/api가
   // map.setCenter()를 재호출해 panTo 결과를 덮어쓰는 버그가 발생하므로 useMemo 필수
-  const firstLat = mappableItems[0]?.lat ?? null
-  const firstLng = mappableItems[0]?.lng ?? null
+  const firstLat = mappableItems[0]?.lat ?? selectedPlace?.lat ?? userLocation?.lat ?? null
+  const firstLng = mappableItems[0]?.lng ?? selectedPlace?.lng ?? userLocation?.lng ?? null
   const center = useMemo(
     () =>
       firstLat !== null && firstLng !== null
@@ -67,13 +86,35 @@ export function DayMapView({ items }: DayMapViewProps) {
 
   const handleMapLoad = useCallback((map: google.maps.Map) => {
     mapRef.current = map
-    // 2개 이상의 마커가 있으면 전체가 보이도록 자동 범위 조정
-    if (mappableItems.length > 1) {
+    // 기존 일정 마커 + 검색 선택 마커를 합산해 전체가 보이도록 범위 조정
+    const validSelectedCoord =
+      selectedPlace?.lat != null && selectedPlace?.lng != null
+        ? { lat: selectedPlace.lat as number, lng: selectedPlace.lng as number }
+        : null
+    const allCoords = [
+      ...mappableItems.map((item) => ({ lat: item.lat, lng: item.lng })),
+      ...(validSelectedCoord ? [validSelectedCoord] : []),
+    ]
+    if (allCoords.length > 1) {
       const bounds = new google.maps.LatLngBounds()
-      mappableItems.forEach((item) => bounds.extend({ lat: item.lat, lng: item.lng }))
+      allCoords.forEach((coord) => bounds.extend(coord))
       map.fitBounds(bounds, { top: 60, right: 40, bottom: 40, left: 40 })
     }
-  }, [mappableItems])
+  }, [mappableItems, selectedPlace])
+
+  // selectedPlace가 변경되면 지도를 해당 위치로 이동
+  useEffect(() => {
+    if (selectedPlace?.lat != null && selectedPlace?.lng != null && mapRef.current) {
+      mapRef.current.panTo({ lat: selectedPlace.lat as number, lng: selectedPlace.lng as number })
+    }
+  }, [selectedPlace])
+
+  // 현재 위치가 설정되고 기존 일정 마커가 없을 때만 현재 위치로 이동
+  useEffect(() => {
+    if (userLocation && mapRef.current && mappableItems.length === 0) {
+      mapRef.current.panTo(userLocation)
+    }
+  }, [userLocation, mappableItems.length])
 
   /** 마커 클릭 시 해당 핀을 지도 중앙으로 이동 후 InfoWindow 표시 */
   const handleMarkerClick = useCallback((index: number, lat: number, lng: number) => {
@@ -81,16 +122,57 @@ export function DayMapView({ items }: DayMapViewProps) {
     mapRef.current?.panTo({ lat, lng })
   }, [])
 
-  if (mappableItems.length === 0) {
+  /** 지도 위 POI 클릭 — 구글 기본 팝업을 억제하고 장소 상세정보를 조회해 부모에 전달 */
+  const handleMapClick = useCallback((event: google.maps.MapMouseEvent) => {
+    const iconEvent = event as google.maps.IconMouseEvent
+    if (!iconEvent.placeId || !event.latLng || !onPlaceClick) return
+    event.stop()
+    const lat = event.latLng.lat()
+    const lng = event.latLng.lng()
+    const placeId = iconEvent.placeId
+    const tempDiv = document.createElement('div')
+    const service = new google.maps.places.PlacesService(tempDiv)
+    service.getDetails(
+      {
+        placeId,
+        fields: ['name', 'rating', 'user_ratings_total', 'formatted_address', 'formatted_phone_number', 'opening_hours', 'price_level'],
+        language: 'ko',
+      } as google.maps.places.PlaceDetailsRequest,
+      (result, status) => {
+        const ok = status === google.maps.places.PlacesServiceStatus.OK
+        const name = ok && result?.name ? result.name : placeId
+        const todayHours =
+          ok && result?.opening_hours?.weekday_text
+            ? getTodayHours(result.opening_hours.weekday_text)
+            : null
+        onPlaceClick({
+          location: name,
+          lat,
+          lng,
+          place_id: placeId,
+          rating: result?.rating ?? null,
+          userRatingCount: result?.user_ratings_total ?? null,
+          address: result?.formatted_address ?? null,
+          phone: result?.formatted_phone_number ?? null,
+          isOpenNow: result?.opening_hours?.isOpen?.() ?? null,
+          todayHours,
+          priceLevel: result?.price_level ?? null,
+        })
+      }
+    )
+  }, [onPlaceClick])
+
+  // 기존 일정도 없고 검색 선택된 장소도 없을 때만 빈 상태 표시
+  if (mappableItems.length === 0 && !selectedPlace && !userLocation) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center px-6 py-10 gap-3">
         <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
           <MapPin className="w-6 h-6 text-muted-foreground" />
         </div>
-        <p className="text-sm font-medium text-foreground">지도에 표시할 장소가 없어요</p>
+        <p className="text-sm font-medium text-foreground">장소를 검색해보세요</p>
         <p className="text-xs text-muted-foreground leading-relaxed">
-          일정 추가 시 장소를 Google Places로 검색하면
-          <br />지도에 경로가 표시됩니다
+          위 검색바에서 장소를 찾아 일정에 추가하거나,
+          <br />일정 추가 시 Google Places로 선택하면 지도에 표시됩니다
         </p>
       </div>
     )
@@ -103,6 +185,7 @@ export function DayMapView({ items }: DayMapViewProps) {
       zoom={14}
       options={MAP_OPTIONS}
       onLoad={handleMapLoad}
+      onClick={handleMapClick}
     >
       {mappableItems.map((item, index) => (
         <Marker
@@ -133,6 +216,36 @@ export function DayMapView({ items }: DayMapViewProps) {
           )}
         </Marker>
       ))}
+
+      {/* 검색에서 선택된 장소 마커 — 파란색 원으로 기존 마커와 구분 */}
+      {selectedPlace?.lat != null && selectedPlace?.lng != null && (
+        <Marker
+          position={{ lat: selectedPlace.lat as number, lng: selectedPlace.lng as number }}
+          icon={{
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 10,
+            fillColor: '#3b82f6',
+            fillOpacity: 0.95,
+            strokeColor: '#ffffff',
+            strokeWeight: 2.5,
+          }}
+        />
+      )}
+
+      {/* 현재 위치 마커 — 진한 파란 점으로 표시 */}
+      {userLocation && (
+        <Marker
+          position={userLocation}
+          icon={{
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 7,
+            fillColor: '#2563eb',
+            fillOpacity: 0.85,
+            strokeColor: '#ffffff',
+            strokeWeight: 3,
+          }}
+        />
+      )}
     </GoogleMap>
   )
 }

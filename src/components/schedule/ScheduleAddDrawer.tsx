@@ -51,6 +51,8 @@ interface ScheduleAddDrawerProps {
   planId: string
   date: string
   editingItem: ScheduleItem | null
+  /** 지도에서 장소 선택 후 일정 추가 시 자동으로 장소 필드를 채워줍니다 */
+  prefilledPlace?: { location: string; lat: number | null; lng: number | null; place_id: string | null; phone?: string | null } | null
   onSaved: () => void
 }
 
@@ -60,6 +62,7 @@ export function ScheduleAddDrawer({
   planId,
   date,
   editingItem,
+  prefilledPlace,
   onSaved,
 }: ScheduleAddDrawerProps) {
   const isEditing = !!editingItem
@@ -132,6 +135,9 @@ export function ScheduleAddDrawer({
   const selectedCategory = watch('category')
   const formTimeValue = watch('time')
   const formEndTimeValue = watch('end_time')
+  // X 버튼 노출 여부 판단용
+  const watchPhone = watch('phone')
+  const watchDescription = watch('description')
 
   // 수정 모드에서 시간을 즉시 파생 (비동기 체인 없이)
   const timeValue = (open && editingItem)
@@ -170,11 +176,21 @@ export function ScheduleAddDrawer({
         title: '',
         description: '',
         category: 'etc',
-        location: '',
-        phone: '',
+        // 지도에서 장소 선택 후 열렸으면 location, phone을 자동 입력
+        location: (open && prefilledPlace) ? prefilledPlace.location : '',
+        phone: (open && prefilledPlace?.phone) ? prefilledPlace.phone : '',
       })
+      // 지도에서 선택한 장소의 좌표·place_id 자동 복원
+      if (open && prefilledPlace) {
+        setPlacesValue(prefilledPlace.location, false)
+        setPlaceCoords({
+          lat: prefilledPlace.lat,
+          lng: prefilledPlace.lng,
+          place_id: prefilledPlace.place_id,
+        })
+      }
     }
-  }, [editingItem, open, setValue, reset, setPlacesValue])
+  }, [editingItem, open, prefilledPlace, setValue, reset, setPlacesValue])
 
   /** 종료 시간 체크박스 토글 */
   const handleEndTimeToggle = (checked: boolean) => {
@@ -210,28 +226,49 @@ export function ScheduleAddDrawer({
     clearSuggestions()
   }
 
+  /** 전화번호 초기화 */
+  const handleClearPhone = () => {
+    setValue('phone', '')
+  }
+
+  /** 메모 초기화 */
+  const handleClearDescription = () => {
+    setValue('description', '')
+  }
+
   /** 일정 저장 (추가 또는 수정) */
   const onSubmit = async (values: ScheduleFormData) => {
     try {
-      const dto = {
-        time: values.time,
-        end_time: hasEndTime && values.end_time ? values.end_time : undefined,
-        title: values.title,
-        description: values.description || undefined,
-        category: values.category,
-        location: values.location || undefined,
-        phone: values.phone || undefined,
-        // Google Places에서 선택된 좌표·장소 ID 포함
-        lat: placeCoords.lat ?? undefined,
-        lng: placeCoords.lng ?? undefined,
-        place_id: placeCoords.place_id ?? undefined,
-      }
-
       if (isEditing && editingItem) {
-        await updateScheduleItem(editingItem.id, dto)
+        // 수정 모드: 빈 값 → null 전송 → Supabase가 DB를 NULL로 업데이트
+        // (undefined는 payload에서 제외되어 기존값이 그대로 유지됨)
+        await updateScheduleItem(editingItem.id, {
+          time: values.time,
+          end_time: hasEndTime && values.end_time ? values.end_time : null,
+          title: values.title,
+          description: values.description || null,
+          category: values.category,
+          location: values.location || null,
+          phone: values.phone || null,
+          lat: placeCoords.lat,
+          lng: placeCoords.lng,
+          place_id: placeCoords.place_id,
+        })
         toast.success('일정이 수정되었습니다.')
       } else {
-        await createScheduleItem(planId, date, dto)
+        // 추가 모드: 빈 값 → undefined (Supabase payload에서 제외 = DB 기본값 사용)
+        await createScheduleItem(planId, date, {
+          time: values.time,
+          end_time: hasEndTime && values.end_time ? values.end_time : undefined,
+          title: values.title,
+          description: values.description || undefined,
+          category: values.category,
+          location: values.location || undefined,
+          phone: values.phone || undefined,
+          lat: placeCoords.lat ?? undefined,
+          lng: placeCoords.lng ?? undefined,
+          place_id: placeCoords.place_id ?? undefined,
+        })
         toast.success('일정이 추가되었습니다.')
       }
 
@@ -405,13 +442,26 @@ export function ScheduleAddDrawer({
               <Phone className="w-3.5 h-3.5 text-muted-foreground" />
               전화번호 (선택)
             </Label>
-            <Input
-              id="phone"
-              type="tel"
-              placeholder="예: 03-3547-5765"
-              {...register('phone')}
-              className={cn(errors.phone && 'border-destructive')}
-            />
+            <div className="relative">
+              <Input
+                id="phone"
+                type="tel"
+                placeholder="예: 03-3547-5765"
+                {...register('phone')}
+                className={cn(errors.phone && 'border-destructive', watchPhone && 'pr-8')}
+              />
+              {/* 입력값이 있을 때 X 버튼으로 초기화 */}
+              {watchPhone && (
+                <button
+                  type="button"
+                  onClick={handleClearPhone}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                  aria-label="전화번호 초기화"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
             {errors.phone && (
               <p className="text-xs text-destructive">{errors.phone.message}</p>
             )}
@@ -420,13 +470,26 @@ export function ScheduleAddDrawer({
           {/* 메모 */}
           <div className="space-y-1.5">
             <Label htmlFor="description">메모 (선택)</Label>
-            <Textarea
-              id="description"
-              placeholder="추가 정보를 입력하세요..."
-              rows={3}
-              {...register('description')}
-              className="resize-none"
-            />
+            <div className="relative">
+              <Textarea
+                id="description"
+                placeholder="추가 정보를 입력하세요..."
+                rows={3}
+                {...register('description')}
+                className={cn('resize-none', watchDescription && 'pr-8')}
+              />
+              {/* 입력값이 있을 때 X 버튼으로 초기화 */}
+              {watchDescription && (
+                <button
+                  type="button"
+                  onClick={handleClearDescription}
+                  className="absolute right-2 top-2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                  aria-label="메모 초기화"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
           </div>
 
           {/* 저장 버튼 */}
