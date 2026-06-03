@@ -49,19 +49,19 @@ export interface CreateScheduleItemDto {
   place_id?: string
 }
 
-/** 일정 항목 수정 시 DTO */
+/** 일정 항목 수정 시 DTO — 수정 모드에서 필드를 지울 때 null로 전송해야 Supabase가 DB를 NULL로 업데이트 */
 export interface UpdateScheduleItemDto {
   time?: string
-  end_time?: string
+  end_time?: string | null
   title?: string
-  description?: string
+  description?: string | null
   category?: ScheduleCategory
-  location?: string
-  phone?: string
+  location?: string | null
+  phone?: string | null
   status?: VisitStatus
-  lat?: number
-  lng?: number
-  place_id?: string
+  lat?: number | null
+  lng?: number | null
+  place_id?: string | null
 }
 
 /** 날짜별 일정 카드 */

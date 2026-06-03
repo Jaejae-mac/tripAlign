@@ -6,7 +6,7 @@
  * 방문 상태(방문예정/방문완료) 토글 및 수정/삭제 메뉴를 제공합니다.
  */
 import { useState } from 'react'
-import { Clock, MapPin, Phone, MoreVertical, Pencil, Trash2, ExternalLink } from 'lucide-react'
+import { Clock, MapPin, Phone, MoreVertical, Pencil, Trash2 } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -112,26 +112,12 @@ export function ScheduleItem({ item, onView, onEdit, onDeleted }: ScheduleItemPr
               </span>
             </div>
 
-            {/* 장소 — 클릭 시 Google Maps에서 장소 열기 */}
+            {/* 장소 — 카드에서는 텍스트만 표시, 지도 링크는 상세 팝업에서 제공 */}
             {item.location && (
-              <a
-                href={
-                  item.place_id
-                    // Maps URLs API: query_place_id로 정확한 장소를 핀포인트합니다
-                    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.location)}&query_place_id=${item.place_id}`
-                    : item.lat && item.lng
-                    ? `https://www.google.com/maps?q=${item.lat},${item.lng}`
-                    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.location)}`
-                }
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                className="flex items-center gap-1 mt-1 text-xs text-muted-foreground hover:text-primary transition-colors cursor-pointer group"
-              >
+              <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
                 <MapPin className="w-3 h-3 shrink-0" />
-                <span className="truncate group-hover:underline">{item.location}</span>
-                <ExternalLink className="w-2.5 h-2.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
-              </a>
+                <span className="truncate">{item.location}</span>
+              </div>
             )}
 
             {/* 전화번호 */}

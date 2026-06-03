@@ -156,6 +156,13 @@ export function ScheduleItemDetailDialog({
     }
   }
 
+  /** 전화 연결 — 확인 후 전화 앱 실행 */
+  const handlePhoneCall = () => {
+    if (window.confirm(`${item.phone}로 전화하시겠습니까?`)) {
+      window.location.href = `tel:${item.phone}`
+    }
+  }
+
   /** 수정: 팝업 먼저 닫고 수정 다이얼로그 열기 */
   const handleEdit = () => {
     onOpenChange(false)
@@ -327,18 +334,18 @@ export function ScheduleItemDetailDialog({
             </div>
           )}
 
-          {/* 전화번호 */}
+          {/* 전화번호 — 탭 시 확인창을 거쳐 전화 앱 실행 */}
           {item.phone && (
             <div className="space-y-1">
               <p className="text-xs font-medium text-muted-foreground">전화번호</p>
               <div className="flex items-center gap-1.5 text-sm">
                 <Phone className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                <a
-                  href={`tel:${item.phone}`}
-                  className="text-primary hover:underline"
+                <button
+                  onClick={handlePhoneCall}
+                  className="text-primary hover:underline cursor-pointer"
                 >
                   {item.phone}
-                </a>
+                </button>
               </div>
             </div>
           )}
